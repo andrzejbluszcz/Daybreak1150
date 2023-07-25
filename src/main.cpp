@@ -285,7 +285,7 @@ void AllOff(void) {
 }
 
 void sendData(void) {  // SEND-DATA, SEND-HEAD, SEND-REST
-  sendStatus();
+  sendStatus(Photons);
 }
 
 void writeRampDiv(unsigned int rampDiv) {  // (rampDiv) RAMP-DIV C! -- writes an initial byte value to the ramp clock counter (CSRCK/)
@@ -349,7 +349,8 @@ void doCal(int cT) {  // DO-CAL
 }
 
 void doQuery(int pointNo) {  // DO-QUERY
-  // TODO: write the code here
+  // DONE: write the code here
+  sendStatus(Curve[pointNo]);
 }
 
 void doHV(int pmtNo) {  // DO-HV

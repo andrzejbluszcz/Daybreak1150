@@ -227,7 +227,7 @@ void startTimer(void) {  // START-TIMER
   Time = 0;
 }
 
-void sendStatus(void) {  // -- ok
+void sendStatus(unsigned long int aCounts) {  // -- ok
   /*
    1 -  6  ffffff   - photon count
    7 - 24  ffffffffffffffffff - photon counts
@@ -250,7 +250,7 @@ void sendStatus(void) {  // -- ok
   byte statusB;
   int* result;
   dataReady = false;
-  s = String(Photons, HEX);
+  s = String(aCounts, HEX);
   while (s.length() < 6) s = "0" + s;
   statusStr = s;
   if (PointNo == -1) s = "FF";
@@ -934,38 +934,38 @@ void outToPos(void) {  // OUT-TO-POS -- ok
 }
 
 void toPlatPos(void) {  // TO-PLAT-POS -- ok
-  sendStatus();
+  sendStatus(Photons);
   startPlatter();
   while (isPlatterPos())
     ;
   while (!isPlatterPos())
     ;
   stopPlatter();
-  sendStatus();
+  sendStatus(Photons);
 }
 
 void Rot_1(void) {  // ROT-1 -- ok
-  sendStatus();
+  sendStatus(Photons);
   Rotate1(true);
-  sendStatus();
+  sendStatus(Photons);
 }
 
 void Ain(void) {  // AIN -- ok
-  sendStatus();
+  sendStatus(Photons);
   ArmIn();
-  sendStatus();
+  sendStatus(Photons);
 }
 
 void Aout(void) {  // AOUT -- ok
-  sendStatus();
+  sendStatus(Photons);
   ArmOut();
-  sendStatus();
+  sendStatus(Photons);
 }
 
 void Ahome(void) {  // AHOME -- ok
-  sendStatus();
+  sendStatus(Photons);
   ArmHome();
-  sendStatus();
+  sendStatus(Photons);
 }
 
 void doTestCommand(String cmdS) {
@@ -975,34 +975,34 @@ void doTestCommand(String cmdS) {
   switch (tNr) {
     case 0:  // T0 -- arm inward to sensor
       inToPos();  // -- ok
-      if (Errors > 0) sendStatus();
+      if (Errors > 0) sendStatus(Photons);
       break;
     case 1:  // T1 -- arm outward to sensor
       outToPos();  // -- ok
-      if (Errors > 0) sendStatus();
+      if (Errors > 0) sendStatus(Photons);
       break;
     case 2:  // T2 -- rotate platter to next position sensor
       toPlatPos();  // -- ok
-      if (Errors > 0) sendStatus();
+      if (Errors > 0) sendStatus(Photons);
       break;
     case 3:  // T3 -- elevator down absolute
       Serial3.println("T3 is not applicable");
       break;
     case 4:  // T4 -- rotate one - sample++
       Rot_1();  // -- ok
-      if (Errors > 0) sendStatus();
+      if (Errors > 0) sendStatus(Photons);
       break;
     case 5:  // T5 -- arm to in position
       Ain();  // after modification -- ok
-      if (Errors > 0) sendStatus();
+      if (Errors > 0) sendStatus(Photons);
       break;
     case 6:  // T6 -- arm to home position
       Ahome();  // -- ok
-      if (Errors > 0) sendStatus();
+      if (Errors > 0) sendStatus(Photons);
       break;
     case 7:  // T7 -- arm to out position
       Aout();  // after modification -- ok
-      if (Errors > 0) sendStatus();
+      if (Errors > 0) sendStatus(Photons);
       break;
     case 11:  // home platter ( 0-19)
       Serial3.println("T11 is not implemented yet");
@@ -1047,7 +1047,7 @@ void doCommand(String cmdS) {
         arg = getArgument(cmdS, 1);
         success = AdvanceTo(arg.toInt());
         if (!success) Serial3.println("command " + cmdS + " unsuccessful");
-        if (Errors > 0) sendStatus();
+        if (Errors > 0) sendStatus(Photons);
       } else Serial3.println("Command " + cmdS + " is not defined.");
       break;
     case 'B':  // GET-TB-TABLE
@@ -1111,7 +1111,7 @@ void doCommand(String cmdS) {
         arg = getArgument(cmdS, 1);
         success = RotateTo(arg.toInt());
         if (!success) Serial3.println("command " + cmdS + " unsuccessful");
-        if (Errors > 0) sendStatus();
+        if (Errors > 0) sendStatus(Photons);
       } else Serial3.println("Command " + cmdS + " is not defined.");
       break;
     case 'K':  // DO-CAL
@@ -1249,7 +1249,7 @@ void processCmd(String cmdS) {
           Serial3.println("ADC#" + String(i) + ": " + String(getADC(i)));
         }
       }
-      sendStatus();
+      sendStatus(Photons);
     } else if ((cmd == "DA") && (argNr >= 2)) {  // write DAC -- DA n val
       arg = getArgument(cmdS, 1);
       n = arg.toInt();
@@ -1257,19 +1257,19 @@ void processCmd(String cmdS) {
       val = arg.toInt();
       writeDAC(n, val);
       Info();
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "HO") {  // Home() -> sample to platter, rotate to #0
       Home();
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "IA") {  // initArm()
       initArm();
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "IH") {  // initHome()
       initHome();
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "RH") {  // RotateHome()
       RotateHome();
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "IP") {  // isPlatterPos()
       if (isPlatterPos()) Serial3.println("yes");
       else Serial3.println("no");
@@ -1288,7 +1288,7 @@ void processCmd(String cmdS) {
       //   Serial3.println("Command " + cmdS + " successful");
       // } else Serial3.println("Command " + cmdS + " unsuccessful");
       Serial3.println("Do not use command " + cmdS);
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "DM") {  // read pin
       // if (!isDeckMid()) {
       //   if (RotateTo(0)) {
@@ -1302,7 +1302,7 @@ void processCmd(String cmdS) {
       //   Serial3.println("Command " + cmdS + " successful");
       // } else Serial3.println("Command " + cmdS + " unsuccessful");
       Serial3.println("Do not use command " + cmdS);
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "DH") {  // read pin
       // goDeckHigh();
       // if (!isDeckHigh()) {
@@ -1319,9 +1319,9 @@ void processCmd(String cmdS) {
       //   Serial3.println("Command " + cmdS + " successful");
       // } else Serial3.println("Command " + cmdS + " unsuccessful");
       Serial3.println("Do not use command " + cmdS);
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "SS") {  // send status string
-      sendStatus();
+      sendStatus(Photons);
     } else if (cmd == "SP") {  // sample to plate (heater)
       Busy();
       sampleToPlate();

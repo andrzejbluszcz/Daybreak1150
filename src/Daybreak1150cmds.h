@@ -65,7 +65,7 @@ void setError(byte err_src);
 void resetErrors(void);
 void startTimer(void);
 
-void sendStatus(void);
+void sendStatus(unsigned long int aCounts);
 void testStatus(void);
 extern void sendData(void);
 
