@@ -149,6 +149,7 @@ extern void getRampRate(int rate);
 
 extern void doPurge(int state);
 extern void doHV(int pmtNo);
+extern void doQuery(int pointNo);
 extern void doCal(int cT);
 extern void doRamp(int rampType);
 extern unsigned int getTemp(void);

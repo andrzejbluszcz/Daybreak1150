@@ -52,7 +52,7 @@ byte getADC(byte num) {  // GET-ADC ( N -- VALUE ) // num - ADC number 0-7
   return(data);
 }
 
-int* get8ADC() {  // GET-ADC ( N -- VALUE )  // return values from all ADCs in a static array 
+int* get8ADC() {  // return values from all ADCs in a static array 
   static int adc[8];
   for (byte i = 0; i < 8; i++) {
     setAddress(i);
@@ -1158,7 +1158,11 @@ void doCommand(String cmdS) {
       } else Serial3.println("Command " + cmdS + " is not defined.");
       break;
     case 'Q':  // DO-QUERY
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      if (argNr == 1) {
+        arg = getArgument(cmdS, 1);
+        a1 = arg.toInt();
+        doQuery(a1);
+      } else Serial3.println("Command " + cmdS + " is not defined.");
       break;
     case 'R':  // GET-RAMPRATE
       if (argNr == 1) {

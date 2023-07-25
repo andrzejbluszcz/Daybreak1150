@@ -350,6 +350,7 @@ void doCal(int cT) {  // DO-CAL
 
 void doQuery(int pointNo) {  // DO-QUERY
   // DONE: write the code here
+  pointNo = min(pointNo, PointNo);
   sendStatus(Curve[pointNo]);
 }
 
