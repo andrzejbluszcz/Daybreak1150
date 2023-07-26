@@ -18,6 +18,13 @@ bool dataReady;
 bool isFLConsole = true;
 unsigned long Photons;
 unsigned int Ticks, numTicks, lastMSEC, periodRampClock;
+// OSL ramp related
+int oslInc, oslRamp;
+bool oslOn;
+int nr10msec, nr100msec, nr1sec, nr10sec;
+unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
+int TBindex, TBpoints, startTBindex;
+word DAC2;
 
 String rampseg[11] = {"rseg_Idle", "rseg_Preheat", "rseg_PhHold", "rseg_PhCool", "rseg_StagePh", "rseg_StHold", "rseg_Ramp", "rseg_EndHold", "rseg_CoolDwn", "n.a.", "rseg_OSL"};
 
@@ -805,7 +812,7 @@ bool ArmToPos(int dir) {  // ARM-TO-POS -- ok
   return (result);
 }
 
-int whereArm(void) {       // WHERE-ARM? -- ok
+int whereArm(void) {  // WHERE-ARM? -- ok
   static int result = -1;  // nowhere
   if (isArmOut()) result = 0;
   if (isArmHome()) result = 1;
@@ -893,6 +900,34 @@ void initHome(void) {  // INIT-HOME -- ok
   unChg();
 }
 
+void setTB(unsigned int nT, unsigned int rD) {  // SET-TB - command 'T22 x y '
+  numTicks = nT;
+  writeRampDiv(rD);
+}
+
+// OSL ramp related
+void setTBtable(void) {  // SET-TB-TABLE - sets default channel widths and number
+  nr10msec = 0x00;
+  nr100msec = 0x00;
+  nr1sec = 0x64;  // 100
+  nr10sec = 0x00;
+  startTBindex = 0x02;
+  divTicks10msec = 0x01F5;   // rampDiv - 1, numTicks - 245 -> 10
+  divTicks100msec = 0x019B;   // rampDiv - 1, numTicks - 155 -> 100
+  divTicks1sec = 0x0405;   // rampDiv - 4, numTicks - 5 -> 250
+  divTicks10sec = 0x2805;   // rampDiv - 40, numTicks - 5 -> 250
+}
+
+void getTBtable(unsigned int X1, unsigned int Y1, unsigned int X2, unsigned int Y2, \
+                unsigned int X3, unsigned int Y3, unsigned int X4, unsigned int Y4) {  
+  // GET-TB-TABLE - command 'Bx1 y1 x2 y2 x3 y4 x4 y4 '
+  // TODO: is it correct to subtract 0x100 - Y ? or 0xFF - Y
+  divTicks10msec = X1*0x100 + (0x100 - Y1);
+  divTicks100msec = X2*0x100 + (0x100 - Y2);
+  divTicks1sec = X3*0x100 + (0x100 - Y3);
+  divTicks10sec = X4*0x100 + (0x100 - Y4);
+}
+
 void setUp(void) { 
   // what is necessary
   digitalWrite(pCSADC, HIGH);  // set all CS's high
@@ -916,11 +951,12 @@ void setUp(void) {
   writeRampDiv(0x05);  // 250 counts - 1 s intervals
   resetErrors();  // Errors = 0;
   AllOff();  // ALL-OFF
-  MaxPt = 0x7D0;  // 2000
+  // MaxPt = 0x7D0;  // 2000
+  MaxPt = sizeof(Curve)/sizeof(Curve[0]);
   // startCounter();  // START-COUNTER
   initHome();  // INIT-HOME
   resetErrors();
-  // setTB();  // SET-TB
+  setTBtable();  // SET-TB-TABLE
 }
 
 // 1150 mechanical test code
@@ -970,6 +1006,7 @@ void Ahome(void) {  // AHOME -- ok
 
 void doTestCommand(String cmdS) {
   int tNr = getArgument(cmdS, 1).toInt();
+  unsigned int a1, a2;
   String cmd = getArgument(cmdS, 0);
   String arg;
   switch (tNr) {
@@ -1021,6 +1058,13 @@ void doTestCommand(String cmdS) {
       arg = getArgument(cmdS, 2);
       Serial3.println("T20 is not implemented yet");
       break;
+    case 22:  // arg1 number of ticks, arg2 number of msecs per tick
+      arg = getArgument(cmdS, 2);
+      a1 = arg.toInt();
+      arg = getArgument(cmdS, 3);
+      a2 = arg.toInt();
+      setTB(a1, a2);
+      break;
     default:
       Serial3.println("Test command " + cmdS + " is not defined here.");
       break;
@@ -1031,7 +1075,7 @@ void doCommand(String cmdS) {
   int argNr = countArgs(cmdS);
   char cmd = getArgument(cmdS, 0).charAt(0);
   String arg;
-  int a1, a2/*, a3, a4*/;
+  int a1, a2, a3, a4, b1, b2, b3, b4;
   bool success;
   // isBusy should also be set/reset around each of @-_ commands
   Busy();
@@ -1051,7 +1095,25 @@ void doCommand(String cmdS) {
       } else Serial3.println("Command " + cmdS + " is not defined.");
       break;
     case 'B':  // GET-TB-TABLE
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      if (argNr == 8) {
+        arg = getArgument(cmdS, 1);
+        a1 = arg.toInt();
+        arg = getArgument(cmdS, 2);
+        b1 = arg.toInt();
+        arg = getArgument(cmdS, 3);
+        a2 = arg.toInt();
+        arg = getArgument(cmdS, 4);
+        b2 = arg.toInt();
+        arg = getArgument(cmdS, 5);
+        a3 = arg.toInt();
+        arg = getArgument(cmdS, 6);
+        b3 = arg.toInt();
+        arg = getArgument(cmdS, 7);
+        a4 = arg.toInt();
+        arg = getArgument(cmdS, 8);
+        b4 = arg.toInt();
+        getTBtable(a1, b1, a2, b2, a3, b3, a4, b4);
+      } else Serial3.println("Command " + cmdS + " is not defined.");
       break;
     case 'C':  // COOL
       if (argNr == 1) {

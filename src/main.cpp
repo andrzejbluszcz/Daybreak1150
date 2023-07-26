@@ -52,7 +52,13 @@ void writeRampDiv(unsigned int rampDiv);
 void storePoint(void);
 void incRampComp(void);
 void RampServer(void);
-
+void setup10msec(void);
+void setup100msec(void);
+void setup1sec(void);
+void setup10sec(void);
+void incOSLramp(void);
+void nextPoint(void);
+void OSLServer(void);
 
 // heating & cooling
 void getSpace(int space1);
@@ -316,9 +322,9 @@ void incRampComp(void) {  // INC-RAMP-COMP
 }
 
 void RampServer(void) {  // RAMP-SERVER
+  // TODO: reset WatchDog - this is a hardware DS1232 MicroMonitor Chip (U27)
   Ticks++;
   if (rampOn) incRampComp();
-  // TODO: reset WatchDog - this is a hardware DS1232 MicroMonitor Chip (U27)
   if (Ticks == numTicks) {
     Time++;
     if (rampFlag) {
@@ -330,6 +336,86 @@ void RampServer(void) {  // RAMP-SERVER
       PointNo++;
       storePoint();
     }
+  }
+}
+
+void incOSLramp(void) {  // INC-OSL-RAMP
+  if (oslInc > 0) {
+    oslRamp += oslInc;
+    writeDAC(2, oslRamp);
+  }
+}
+
+void setup10msec(void) {  // SETUP10MSEC
+  numTicks = highByte(divTicks10msec);
+  writeRampDiv(lowByte(divTicks10msec));
+  TBpoints = nr10msec;
+  Ticks = 0;
+}
+
+void setup100msec(void) {  // SETUP100MSEC
+  numTicks = highByte(divTicks100msec);
+  writeRampDiv(lowByte(divTicks100msec));
+  TBpoints = nr100msec;
+  Ticks = 0;
+}
+
+void setup1sec(void) {  // SETUP1SEC
+  numTicks = highByte(divTicks1sec);
+  writeRampDiv(lowByte(divTicks1sec));
+  TBpoints = nr1sec;
+  Ticks = 0;
+}
+
+void setup10sec(void) {  // SETUP10SEC
+  numTicks = highByte(divTicks10sec);
+  writeRampDiv(lowByte(divTicks10sec));
+  TBpoints = nr10sec;
+  Ticks = 0;
+}
+
+void setupTB(void) {  // SETUPTB
+  switch (TBindex) {
+    case 0: setup10msec(); break;
+    case 1: setup100msec(); break;
+    case 2: setup1sec(); break;
+    case 3: setup10sec(); break;
+    // TODO: check the meaning of line below
+    default: TBpoints = 1; break;  // is it necessary? what with Ticks?
+  }
+}
+
+void nextPoint(void) {  // NEXT-POINT
+  TBpoints--;
+  if (TBpoints == 0) {  // go to next TB
+    do {
+      TBindex++;
+      setupTB();
+    } while (TBpoints == 0);
+    if (TBindex == 4) {  // OSL ramp is finished
+      oslOn = false;
+      // digitalWrite(pOSLen, HIGH);
+      // digitalWrite(pIRen, HIGH);
+      // writeExtension(0x1FEE, 0);  // external shutter off
+      Time = 0;
+      oslDisp = false;
+      numTicks = 4;
+      writeRampDiv(0x05);
+      Ticks = 0;
+    }
+  }
+}
+
+void OSLServer(void) {  // OSL-SERVER
+  // TODO: reset WatchDog - this is a hardware DS1232 MicroMonitor Chip (U27)
+  Ticks++;
+  if (Ticks == numTicks) {
+    Time++;
+    PointNo++;
+    readCounter();
+    storePoint();
+    incOSLramp();
+    nextPoint();
   }
 }
 

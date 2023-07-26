@@ -12,12 +12,19 @@ extern bool dataReady;
 extern bool isFLConsole;
 extern unsigned long Photons;
 extern unsigned int Ticks, numTicks, lastMSEC, periodRampClock;  // to set Ramp Clock period in msecs
-// extern unsigned long Curve[1024];  // CURVE
+extern unsigned long Curve[2000];  // CURVE
 extern int CurvePt;  // CURVEPTR  -- here index to current point in Curve[]
 extern int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
 extern unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
 extern int PointNo, lastSent;
 extern bool Purging, HVdisp, OvenDisp, OSLon, rampFlag, rampOn, isSetPt;
+// OSL ramp related
+extern int oslInc, oslRamp;
+extern bool oslOn, oslDisp;
+extern int nr10msec, nr100msec, nr1sec, nr10sec;
+extern unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
+extern int TBindex, TBpoints, startTBindex;
+extern word DAC2;
 
 // Errors handling -- err_src
 const byte T_err = 0;
@@ -153,6 +160,13 @@ extern void doQuery(int pointNo);
 extern void doCal(int cT);
 extern void doRamp(int rampType);
 extern unsigned int getTemp(void);
+
+void setTB(unsigned int nT, unsigned int rD);
+void getTBtable(unsigned int X1, unsigned int Y1, unsigned int X2, unsigned int Y2, \
+                unsigned int X3, unsigned int Y3, unsigned int X4, unsigned int Y4);
+
+// OSL ramp related
+void setTBtable(void);
 
 extern void RampServer(void);
 
