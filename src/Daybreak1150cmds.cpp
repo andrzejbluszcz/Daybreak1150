@@ -661,7 +661,7 @@ bool sampleToPlatter(void) {  // SAMPLE-TO-PLATTER -- ok
   return (result);
 }
 
-void sampleBack(void) {
+void sampleBack(void) {  // SAMPLE-BACK
   sampleToPlatter();
 }
 
@@ -1021,7 +1021,7 @@ void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt) {  // DO-O
   }
 }
 
-void setUp(void) { 
+void setUp(void) {  // SET-UP
   // what is necessary
   digitalWrite(pCSADC, HIGH);  // set all CS's high
   digitalWrite(pCSDAC1, HIGH);
@@ -1097,7 +1097,7 @@ void Ahome(void) {  // AHOME -- ok
   sendStatus(Photons);
 }
 
-void doTestCommand(String cmdS) {
+void doTestCommand(String cmdS) {  // DO-TEST
   int tNr = getArgument(cmdS, 1).toInt();
   unsigned int a1, a2;
   String cmd = getArgument(cmdS, 0);
@@ -1164,7 +1164,7 @@ void doTestCommand(String cmdS) {
   }
 }
 
-void doCommand(String cmdS) {
+void doCommand(String cmdS) {  // DO-COMMAND
   int argNr = countArgs(cmdS);
   char cmd = getArgument(cmdS, 0).charAt(0);
   String arg;
@@ -1421,7 +1421,7 @@ void doCommand(String cmdS) {
   if (errNotDef) Serial3.println("Command " + cmdS + " is not defined yet.");
 }
 
-void processCmd(String cmdS) {
+void processCmd(String cmdS) {  // wrap around doCommand() && special commands
   int argNr = countArgs(cmdS);
   static byte n;
   static word val;

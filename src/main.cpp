@@ -253,11 +253,11 @@ void VacOff(void) {  // VAC-OFF
   // VacuumBleed & VacuumMain off
 }
 
-void calON(void) {
+void calON(void) {  // CAL-ON
   digitalWrite(pCalEn, LOW);
 }
 
-void calOFF(void) {
+void calOFF(void) {  // CAL-OFF
   digitalWrite(pCalEn, HIGH);
 }
 
@@ -275,7 +275,7 @@ void HVoff(void) {  // HV-OFF
     // and all other HV power supplies
 }
 
-void AllOff(void) {
+void AllOff(void) {  // ALL-OFF
   digitalWrite(pElevEn, HIGH);
   // digitalWrite(pCalib, LOW);
   // digitalWrite(pIrrad, LOW);
