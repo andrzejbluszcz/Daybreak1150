@@ -20,7 +20,7 @@ unsigned long Photons;
 unsigned int Ticks, numTicks, lastMSEC, periodRampClock;
 // OSL ramp related
 int oslInc, oslRamp;
-bool oslOn;
+bool oslOn, oslDisp;
 int nr10msec, nr100msec, nr1sec, nr10sec;
 unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
 int TBindex, TBpoints, startTBindex;
@@ -900,12 +900,12 @@ void initHome(void) {  // INIT-HOME -- ok
   unChg();
 }
 
+// OSL ramp related
 void setTB(unsigned int nT, unsigned int rD) {  // SET-TB - command 'T22 x y '
   numTicks = nT;
   writeRampDiv(rD);
 }
 
-// OSL ramp related
 void setTBtable(void) {  // SET-TB-TABLE - sets default channel widths and number
   nr10msec = 0x00;
   nr100msec = 0x00;
@@ -926,6 +926,99 @@ void getTBtable(unsigned int X1, unsigned int Y1, unsigned int X2, unsigned int 
   divTicks100msec = X2*0x100 + (0x100 - Y2);
   divTicks1sec = X3*0x100 + (0x100 - Y3);
   divTicks10sec = X4*0x100 + (0x100 - Y4);
+}
+
+void getOSLinfo(unsigned int x0, unsigned int x1, unsigned int x2, unsigned int x3) {  // GET-OSL-INFO
+  startTBindex = -1;
+  nr10msec = x0;
+  if ((x0 > 0) && (startTBindex < 0)) startTBindex = 0;
+  nr100msec = x1;
+  if ((x1 > 0) && (startTBindex < 0)) startTBindex = 1;
+  nr1sec = x2;
+  if ((x2 > 0) && (startTBindex < 0)) startTBindex = 2;
+  nr10sec = x3;
+  if ((x3 > 0) && (startTBindex < 0)) startTBindex = 3;
+}
+
+void oslLEDsOn(void) {  // OSL-LEDS-ON PG0 IRenable
+  // digitalWrite(pIRen, LOW);
+}
+
+void oslLEDsOff(void) {  // OSL-LEDS-OFF PG0 IRenable
+  // digitalWrite(pIRen, HIGH);
+}
+
+void constCurrent(void) {  // CONST-CURRENT PG1 OSLEnable
+  // digitalWrite(pOSLen, LOW);
+}
+
+void servoCurrent(void) {  // SERVO-CURRENT PG1 OSLEnable
+  // digitalWrite(pOSLen, HIGH);
+}
+
+void doLEDs(unsigned int power, unsigned int mode) {  // DO-LEDS
+  writeDAC(2, power);
+  if (power == 0) {
+    servoCurrent();
+    // writeExtension(0x1FEE, 0);
+    oslLEDsOff();
+    oslDisp = false;
+  } else {
+    if (mode == 2) {
+      // writeExtension(0x1FEE, 1);
+      constCurrent();  // EXT SHUTTER  AND GREEN
+    } else {
+      servoCurrent();
+      oslLEDsOn();
+    }
+    oslDisp = true;
+    startTimer();
+  }
+}
+
+void firstPt(unsigned int fstPt) {  // ST# 
+  if (fstPt == 0) {
+    PointNo = -1;
+    lastSent = -1;
+    CurvePt = -1;
+  } else {
+    PointNo = 0;
+    lastSent = 0;
+    CurvePt = 0;
+  }
+}
+
+void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt) {  // DO-OSL
+  oslRamp = power;
+  writeDAC(2, power);
+  if (mode > 3) {  // mode = 0-3--> DC, 4-7--> LM
+    oslInc = oslRamp;
+  } else {
+    oslInc = 0;
+  }
+  servoCurrent();
+  if (power > 0) {  // then start OSL
+    if (mode == 6) {
+      constCurrent();
+      // writeExtension(0x1FEE, 1);
+    } else {
+      oslLEDsOn();
+    }
+    delay(5);
+    TBindex = startTBindex;
+    Time = 0;
+    oslDisp = true;
+    firstPt(fstPt);
+    startCounter();
+    RampSeg = 0x0A;
+    setupTB();
+    oslOn = true;
+  } else {
+    servoCurrent();
+    // writeExtension(0x1FEE, 0);
+    oslOn = false;
+    oslDisp = false;
+  }
 }
 
 void setUp(void) { 
@@ -1076,7 +1169,9 @@ void doCommand(String cmdS) {
   char cmd = getArgument(cmdS, 0).charAt(0);
   String arg;
   int a1, a2, a3, a4, b1, b2, b3, b4;
-  bool success;
+  bool errSyntax, errNotDef;
+  errNotDef = false;
+  errSyntax = false;
   // isBusy should also be set/reset around each of @-_ commands
   Busy();
   switch (cmd) {
@@ -1084,15 +1179,14 @@ void doCommand(String cmdS) {
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
         setTemp(arg.toInt());
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'A':  // ADVANCE
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
-        success = AdvanceTo(arg.toInt());
-        if (!success) Serial3.println("command " + cmdS + " unsuccessful");
+        AdvanceTo(arg.toInt());
         if (Errors > 0) sendStatus(Photons);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'B':  // GET-TB-TABLE
       if (argNr == 8) {
@@ -1113,7 +1207,7 @@ void doCommand(String cmdS) {
         arg = getArgument(cmdS, 8);
         b4 = arg.toInt();
         getTBtable(a1, b1, a2, b2, a3, b3, a4, b4);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'C':  // COOL
       if (argNr == 1) {
@@ -1130,14 +1224,14 @@ void doCommand(String cmdS) {
             Serial3.println("Command " + cmdS + " is not defined.");
             break;
         }
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'D':  // GET-SPACE
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
         a1 = arg.toInt();
         getSpace(a1);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'E':  // GET-ENDPOINT
       if (argNr == 2) {
@@ -1146,54 +1240,59 @@ void doCommand(String cmdS) {
         arg = getArgument(cmdS, 2);
         a2 = arg.toInt();
         getEndPoint(a1, a2);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'F':  // 4FILTER
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      errNotDef = true;
       break;
     case 'G':  // DO-RAMP
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
         a1 = arg.toInt();
         doRamp(a1);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'H':  // DO-HV
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
         a1 = arg.toInt();
         doHV(a1);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'I':  // DO-IRRAD
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      errNotDef = true;
       break;
     case 'J':  // JUMP
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
-        success = RotateTo(arg.toInt());
-        if (!success) Serial3.println("command " + cmdS + " unsuccessful");
+        RotateTo(arg.toInt());
         if (Errors > 0) sendStatus(Photons);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'K':  // DO-CAL
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
         doCal(arg.toInt());
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'L':  // GET-COOL
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
         getCool(arg.toInt());
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'M':  // SAMPLE-BACK
       if (argNr == 0) sampleBack();
-      else Serial3.println("Command " + cmdS + " is not defined.");
+      else errSyntax = true;
       break;
     case 'N':  // DO-LEDS
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      if (argNr == 2) {
+        arg = getArgument(cmdS, 1);
+        a1 = arg.toInt();
+        arg = getArgument(cmdS, 2);
+        a2 = arg.toInt();
+        doLEDs(a1, a2);
+      } else errSyntax = true;
       break;
     case 'O':  // DO-OVEN
       if (argNr == 1) {
@@ -1210,21 +1309,21 @@ void doCommand(String cmdS) {
             Serial3.println("Command " + cmdS + " is not defined.");
             break;
         }
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'P':  // DO-PURGE
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
         a1 = arg.toInt();
         doPurge(a1);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'Q':  // DO-QUERY
       if (argNr == 1) {
         arg = getArgument(cmdS, 1);
         a1 = arg.toInt();
         doQuery(a1);
-      } else Serial3.println("Command " + cmdS + " is not defined.");
+      } else errSyntax = true;
       break;
     case 'R':  // GET-RAMPRATE
       if (argNr == 1) {
@@ -1232,7 +1331,7 @@ void doCommand(String cmdS) {
         a1 = arg.toInt();
         getRampRate(a1);
       }
-      else Serial3.println("Command " + cmdS + " is not defined.");
+      else errSyntax = true;
       break;
     case 'S':  // GET-STAGE
       if (argNr == 2) {
@@ -1242,16 +1341,24 @@ void doCommand(String cmdS) {
         a2 = arg.toInt();
         getStage(a1, a2);
       }
-      else Serial3.println("Command " + cmdS + " is not defined.");
+      else errSyntax = true;
       break;
     case 'T':  // TEST
       doTestCommand(cmdS);
       break;
     case 'U':  // DO-OSL
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      if (argNr == 3) {
+        arg = getArgument(cmdS, 1);
+        a1 = arg.toInt();
+        arg = getArgument(cmdS, 2);
+        a2 = arg.toInt();
+        arg = getArgument(cmdS, 3);
+        a3 = arg.toInt();
+        doOSL(a1, a2, a3);
+      } else errSyntax = true;
       break;
     case 'V':  // DO-VACUUM
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      errNotDef = true;
       break;
     case 'W':  // GET-PREHEAT
       if (argNr == 2) {
@@ -1261,37 +1368,57 @@ void doCommand(String cmdS) {
         a2 = arg.toInt();
         getPreheat(a1, a2);
       }
-      else Serial3.println("Command " + cmdS + " is not defined.");
+      else errSyntax = true;
       break;
     case 'X':  // GET-OSL-INFO
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      if (argNr == 4) {
+        arg = getArgument(cmdS, 1);
+        a1 = arg.toInt();
+        arg = getArgument(cmdS, 2);
+        a2 = arg.toInt();
+        arg = getArgument(cmdS, 3);
+        a3 = arg.toInt();
+        arg = getArgument(cmdS, 4);
+        a4 = arg.toInt();
+        getOSLinfo(a1, a2, a3, a4);
+      } else errSyntax = true;
       break;
     case 'Y':  // SET-DAC2
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      if (argNr == 1) {
+        arg = getArgument(cmdS, 1);
+        setDAC2(arg.toInt());
+      } else errSyntax = true;
       break;
     case 'Z':  // SET-UP
-      setUp();
+      if (argNr == 0) {
+        setUp();
+      } else errSyntax = true;
       break;
     case '[':  // 862-CONTROL
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      errNotDef = true;
       break;
     case '\\':  // NOP
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      errNotDef = true;
       break;
     case ']':  // NOP
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      errNotDef = true;
       break;
     case '^':  // SAMPLE-BACK
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      if (argNr == 0) sampleBack();
+      else errSyntax = true;
       break;
     case '_':  // RESET-ERRORS
-      resetErrors();
+      if (argNr == 0) {
+        resetErrors();
+      } else errSyntax = true;
       break;
     default:
-      Serial3.println("Command " + cmdS + " is not defined yet.");
+      errSyntax = true;
       break;
   }
   unBusy();
+  if (errSyntax) Serial3.println("Syntax error. Command " + cmdS + " is not defined.");
+  if (errNotDef) Serial3.println("Command " + cmdS + " is not defined yet.");
 }
 
 void processCmd(String cmdS) {

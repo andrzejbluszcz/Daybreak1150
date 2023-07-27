@@ -148,6 +148,7 @@ extern void OvenOff(void);
 extern void AllOff(void);
 extern void getSpace(int space1);
 extern void setTemp(int temp);
+extern void setDAC2(int val);
 extern void getCool(int temp);
 extern void getEndPoint(int temp, int time);
 extern void getStage(int temp, int time);
@@ -161,12 +162,19 @@ extern void doCal(int cT);
 extern void doRamp(int rampType);
 extern unsigned int getTemp(void);
 
+// OSL ramp related
+void getOSLinfo(unsigned int x0, unsigned int x1, unsigned int x2, unsigned int x3); 
 void setTB(unsigned int nT, unsigned int rD);
 void getTBtable(unsigned int X1, unsigned int Y1, unsigned int X2, unsigned int Y2, \
                 unsigned int X3, unsigned int Y3, unsigned int X4, unsigned int Y4);
-
-// OSL ramp related
+extern void setupTB(void);
 void setTBtable(void);
+void oslLEDsOn(void);
+void oslLEDsOff(void);
+void constCurrent(void);
+void servoCurrent(void);
+void doLEDs(unsigned int power, unsigned int mode);
+void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt);
 
 extern void RampServer(void);
 

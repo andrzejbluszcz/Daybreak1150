@@ -68,6 +68,7 @@ void doHV(int pmtNo);
 void doPurge(int state);
 
 void setTemp(int temp);
+void setDAC2(int val);
 void getCool(int temp);
 void getEndPoint(int temp, int time);
 void getPreheat(int temp, int time);
@@ -460,21 +461,29 @@ void setTemp(int temp) {  // SET-POINT
   isSetPt = true;
 }
 
+void setDAC2(int val) {  // SET-DAC2
+  val = min(4095, max(0, val));
+  writeDAC(2, val);
+}
+
 void getCool(int temp) {  // GET-COOL
   CoolTemp = temp;
 }
 
 void getEndPoint(int temp, int time) {  // GET-ENDPOINT
+  // TODO: in FORTH code temp is incremented by 1 - why? Is it related to the condition ending the ramp?
   RampEnd4 = 4*max(min(temp, 700), 0);
   HoldTime = max(time, 0);
 }
 
 void getPreheat(int temp, int time) {  // GET-PREHEAT
+  // TODO: in FORTH code temp is incremented by 1 - why?
   PhTemp4 = 4*max(min(temp, 700), 0);
   PhTime = max(time, 0);
 }
 
 void getStage(int temp, int time) {  // GET-STAGE
+  // TODO: in FORTH code temp is incremented by 1 - why?
   StageTemp4 = 4*max(min(temp, 700), 0);
   StageTime = max(time, 0);
 }
