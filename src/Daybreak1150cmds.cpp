@@ -24,7 +24,7 @@ bool oslOn, oslDisp;
 int nr10msec, nr100msec, nr1sec, nr10sec;
 unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
 int TBindex, TBpoints, startTBindex;
-word DAC2;
+// word DAC2;
 
 String rampseg[11] = {"rseg_Idle", "rseg_Preheat", "rseg_PhHold", "rseg_PhCool", "rseg_StagePh", "rseg_StHold", "rseg_Ramp", "rseg_EndHold", "rseg_CoolDwn", "n.a.", "rseg_OSL"};
 
