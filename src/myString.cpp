@@ -26,7 +26,7 @@ int countArgs(String cmdS) { // argument is anything after command separated wit
 String byteToBinStr(byte value, byte len = 8) {
   String numS = String(value, BIN);
   while (numS.length() < len) numS = "0" + numS;
-  return(numS);
+  return("0b" + numS);
 }
 
 String byteToHexStr(byte value, byte len = 2) {
@@ -125,7 +125,7 @@ bool isCommandName(char c) {
   return ((c >= '@') && (c <= '_'));
 }
 
-bool isCommandSuffix(char c) {
+bool isCommandSuffix(char c) {  // command suffix is a second letter in a special command name
   return ((c >= 'A') && (c <= 'Z'));
 }
 
@@ -149,9 +149,9 @@ int commandDelims(char c) {  // the function returns a number of delimiters nece
 
 int specialDelims(String cmd) {  // the function returns a number of delimiters necessary to complete the special (two-letter) command
   // Serial3.println(("specialDelims received cmd: '" + cmd + "'"));
-  if ((cmd == "HO") || (cmd == "IA") || (cmd == "IH") || (cmd == "RH") || (cmd == "IP") || (cmd == "SS") || (cmd == "SP") || (cmd == "IN") || (cmd == "NF") || (cmd == "TC")) return 1; 
-  else if ((cmd == "HO") || (cmd == "IA") || (cmd == "IH")) return 2;
-  else if (cmd == "DA") return 3;
+  if ((cmd == "HO") || (cmd == "IA") || (cmd == "IH") || (cmd == "RH") || (cmd == "IP") || (cmd == "SS") || (cmd == "SP") || (cmd == "IN") || (cmd == "NF")) return 1; 
+  else if ((cmd == "AD") || (cmd == "RC") || (cmd == "TC")) return 2;
+  else if ((cmd == "DA")) return 3;
   else return -1;
 }
 
