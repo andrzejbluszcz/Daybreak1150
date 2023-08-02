@@ -12,12 +12,12 @@ extern bool dataReady;
 extern bool isFLConsole;
 extern unsigned long Photons;
 extern unsigned int Ticks, numTicks, lastMSEC, periodRampClock;  // to set Ramp Clock period in msecs
-extern unsigned long Curve[2000];  // CURVE
+extern unsigned long Curve[1020];  // CURVE
 extern int CurvePt;  // CURVEPTR  -- here index to current point in Curve[]
 extern int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
 extern unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
 extern int PointNo, lastSent;
-extern bool Purging, HVdisp, OvenDisp, OSLon, rampFlag, rampOn, isSetPt;
+extern bool Purging, HVdisp, OvenDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
 // OSL ramp related
 extern int oslInc, oslRamp;
 extern bool oslOn, oslDisp;
@@ -41,7 +41,7 @@ const byte Buf_err = 10;
 const byte Deck_err = 11;
 const byte X862_err = 12;
 
-// generalized ramp stage numbers
+// generalized ramp segment numbers
 const int rseg_Idle = 0;
 const int rseg_Preheat = 1;
 const int rseg_PhHold = 2;
@@ -72,9 +72,13 @@ void setError(byte err_src);
 void resetErrors(void);
 void startTimer(void);
 
+void sendHead(void);
+void sendVHead(int point);
+void sendRest(void);
+void send_Data(void);
 void sendStatus(unsigned long int aCounts);
 void testStatus(void);
-extern void sendData(void);
+// extern void sendData(int pointNo);
 
 // 1100/1150 MOTION CODE
 void Busy(void);
@@ -175,8 +179,10 @@ void constCurrent(void);
 void servoCurrent(void);
 void doLEDs(unsigned int power, unsigned int mode);
 void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt);
+void OSLsendIfDataWaiting(void);
 
 extern void RampServer(void);
+extern void OSLServer(void);
 
 // not Daybreak
 extern void stopTimer3(void);

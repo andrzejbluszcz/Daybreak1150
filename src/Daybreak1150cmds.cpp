@@ -215,7 +215,11 @@ ISR(TIMER5_CAPT_vect) {  // the main interrupt server that calls specialised ser
   // digitalWrite(pCSRCK, HIGH);
   // }
   // Ticks++;
-  RampServer();
+  // Serial.println("ISR  Ticks=" + String(Ticks) + "  oslOn=" + String(oslOn ? "Y" : "N"));
+  if (oslOn) {
+    OSLServer();
+  }
+  else RampServer();
 }
 
 void setError(byte err_src) {  // SET-XXX-ERR -- ok
@@ -234,8 +238,123 @@ void startTimer(void) {  // START-TIMER
   Time = 0;
 }
 
+void sendHead(void) {  // SEND-HEAD  sends number of photons (3 bytes) and point number (1 byte or 2 bytes for 2200)
+  String s, statusStr;
+
+  dataReady = false;   // clears 'dataReady'
+  s = String(Photons, HEX);
+  while (s.length() < 6) s = "0" + s;
+  statusStr = s;
+  if (PointNo == -1) s = "FF";
+  else s = String(PointNo, HEX);
+  while (s.length() < 2) s = "0" + s;  // or 2 byte PointNo for 2200
+  statusStr.concat(s);
+  Serial3.print(statusStr);
+}
+
+void sendVHead(int point) {  // SEND-V-HEAD  sends Curve[point] and point
+  String s, statusStr;
+
+  s = String(Curve[point], HEX);
+  while (s.length() < 6) s = "0" + s;
+  statusStr = s;
+  String(point, HEX);
+  while (s.length() < 2) s = "0" + s;  // or 2 byte point number for 2200
+  statusStr.concat(s);
+  Serial3.print(statusStr);
+}
+
+void sendRest(void) {  // SEND-REST
+  String s, statusStr;
+  byte statusB;
+  int* result;
+
+  s = String(Sample, HEX);
+  while (s.length() < 2) s = "0" + s;
+  statusStr = s;
+  if ((RampSeg == rseg_Ramp) && (Time == 0)) {  // modified to realise stage preheat functionality
+    s = String(rseg_StHold, HEX);  
+  } else {
+    s = String(RampSeg, HEX);
+  }
+  while (s.length() < 2) s = "0" + s;
+  statusStr.concat(s);
+  s = String(Errors, HEX);
+  while (s.length() < 4) s = "0" + s;
+  statusStr.concat(s);
+  result = get8ADC();
+  for (byte i = 0; i < 8; i++) {
+    s = String(result[i], HEX);
+    while (s.length() < 2) s = "0" + s;
+    statusStr.concat(s);
+  }
+  statusB = (digitalRead(pDeckOK) << 0) | 
+            (digitalRead(pDeckLo) << 1) | 
+            (digitalRead(pArmOut) << 2) | 
+            (digitalRead(pArmHom) << 3) | 
+            (digitalRead(pArmIn) << 4) | 
+            (digitalRead(pArmOK) << 5) | 
+            (digitalRead(pPlatHom) << 6) | 
+            (digitalRead(pPlatOK) << 7);
+  s = String(statusB, HEX);
+  while (s.length() < 2) s = "0" + s;
+  statusStr.concat(s);
+  statusB = (digitalRead(pElevEn) << 0) | 
+            (1 << 1) |  // (digitalRead(pCalib) << 1) | 
+            (1 << 2) |  // (digitalRead(pIrrad) << 2) | 
+            (1 << 3) |  // (digitalRead(pVacMain) << 3) | 
+            (1 << 4) |  // (digitalRead(pVacBleed) << 4) | 
+            (digitalRead(pPurge) << 5) | 
+            (digitalRead(pCool) << 6) | 
+            (digitalRead(pOvenEn) << 7);
+  s = String(statusB, HEX);
+  while (s.length() < 2) s = "0" + s;
+  statusStr.concat(s);
+  statusB = (1 << 0) |  // (digitalRead(pHas770) << 0) | 
+            (1 << 1) |  // (digitalRead(pTCfault) << 1) | 
+            (1 << 2) |  // (digitalRead(pHVintlk) << 2) | 
+            (digitalRead(pHVen) << 3) | 
+            (digitalRead(pHasElev) << 4) | 
+            ((isBusy ? 0 : 1) << 5) | 
+            (1 << 6) |  // (digitalRead(p770OK) << 6) | 
+            (digitalRead(pElevDir) << 7);
+  // if (isBusy) statusB |= (0 << 5); else statusB |= (1 << 5);
+  s = String(statusB, HEX);
+  while (s.length() < 2) s = "0" + s;
+  statusStr.concat(s);
+  statusB = (1 << 0) |  // (digitalRead(pIRen) << 0) | 
+            (1 << 1) |  // (digitalRead(pOSLen) << 1) | 
+            (digitalRead(pDeckMi) << 2) | 
+            (digitalRead(pDeckHi) << 3) | 
+            (1 << 4) |  // (digitalRead(pContr770) << 4) | 
+            (digitalRead(pArmEn) << 5) | 
+            (digitalRead(pArmDir) << 6) | 
+            (digitalRead(pPlatEn) << 7);
+  s = String(statusB, HEX);
+  while (s.length() < 2) s = "0" + s;
+  statusStr.concat(s);
+  s = String(Time, HEX);
+  while (s.length() < 4) s = "0" + s;
+  statusStr.concat(s);
+  statusStr.toUpperCase();
+  if (!isFLConsole) {
+    s = " ramp " + String(Ramp, HEX) + " millis " + String(millis());
+    statusStr.concat(s);
+  }
+  Serial3.print(statusStr);
+  Serial3.write(0x0D);  // sends CARRIAGE RETURN  0x0D
+  if (!isFLConsole) Serial3.write(0x0A);  // sends to IDE an  additional NEW LINE  0x0A
+}
+
+void send_Data(void) {
+  if (Serial3.availableForWrite() > 45) {
+    sendHead();
+    sendRest();
+  }
+}
+
 void sendStatus(unsigned long int aCounts) {  // -- ok
-  /*
+  /* data structure 
    1 -  6  ffffff   - photon count
    7 - 24  ffffffffffffffffff - photon counts
    7 -  8  dd       - data point number
@@ -256,6 +375,7 @@ void sendStatus(unsigned long int aCounts) {  // -- ok
   String s, statusStr;
   byte statusB;
   int* result;
+
   dataReady = false;
   s = String(aCounts, HEX);
   while (s.length() < 6) s = "0" + s;
@@ -543,7 +663,7 @@ bool Rotate1(bool check) {  // ROTATE1  ( CHECK?-- OK? ) -- ok
     stopPlatter();
     if (isPlatterPos()) {
       Sample = (Sample + 1) % 20;
-      sendData();
+      send_Data();
       changeDisp = false;
     } else {
       setError(Pos_err);
@@ -635,13 +755,13 @@ bool ArmOut(void) {  // ARM-OUT -- ok
 
 bool sampleToPlate(void) {  // SAMPLE-TO-PLATE -- ok
   bool result = ArmHome();
-  sendData();
+  send_Data();
   if (result) {
     result = result && ArmOut();
-    sendData();
+    send_Data();
     if (result) {
       result = result && ArmHome();
-      sendData();
+      send_Data();
     }
   }
   return (result);
@@ -649,13 +769,13 @@ bool sampleToPlate(void) {  // SAMPLE-TO-PLATE -- ok
 
 bool sampleToPlatter(void) {  // SAMPLE-TO-PLATTER -- ok
   bool result = ArmHome();
-  sendData();
+  send_Data();
   if (result) {
     result = result && ArmIn();
-    sendData();
+    send_Data();
     if (result) {
       result = result && ArmHome();
-      sendData();
+      send_Data();
     }
   }
   return (result);
@@ -948,15 +1068,15 @@ void oslLEDsOff(void) {  // OSL-LEDS-OFF PG0 IRenable
   // digitalWrite(pIRen, HIGH);
 }
 
-void constCurrent(void) {  // CONST-CURRENT PG1 OSLEnable
+void constCurrent(void) {  // CONST-CURRENT PG1 OSLEnable on
   // digitalWrite(pOSLen, LOW);
 }
 
-void servoCurrent(void) {  // SERVO-CURRENT PG1 OSLEnable
+void servoCurrent(void) {  // SERVO-CURRENT PG1 OSLEnable off
   // digitalWrite(pOSLen, HIGH);
 }
 
-void doLEDs(unsigned int power, unsigned int mode) {  // DO-LEDS
+void doLEDs(unsigned int power, unsigned int mode) {  // DO-LEDS  N-command
   writeDAC(2, power);
   if (power == 0) {
     servoCurrent();
@@ -988,7 +1108,7 @@ void firstPt(unsigned int fstPt) {  // ST#
   }
 }
 
-void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt) {  // DO-OSL
+void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt) {  // DO-OSL  U-command
   oslRamp = power;
   writeDAC(2, power);
   if (mode > 3) {  // mode = 0-3--> DC, 4-7--> LM
@@ -996,28 +1116,52 @@ void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt) {  // DO-O
   } else {
     oslInc = 0;
   }
-  servoCurrent();
+  servoCurrent();  // OSL off
   if (power > 0) {  // then start OSL
     if (mode == 6) {
-      constCurrent();
+      constCurrent();  // OSL on
       // writeExtension(0x1FEE, 1);
     } else {
-      oslLEDsOn();
+      oslLEDsOn();  // IRSL on
     }
     delay(5);
     TBindex = startTBindex;
     Time = 0;
     oslDisp = true;
     firstPt(fstPt);
-    startCounter();
     RampSeg = 0x0A;
     setupTB();
+    startCounter();
     oslOn = true;
   } else {
     servoCurrent();
     // writeExtension(0x1FEE, 0);
     oslOn = false;
     oslDisp = false;
+  }
+  Serial.println("In doOSL()");
+  Serial.println("  TBindex: " + String(TBindex));
+  Serial.println("    oslOn: " + String(oslOn ? "yes" : "no"));
+  Serial.println("   10ms: " + String(nr10msec) + "  " + String(highByte(divTicks10msec)) + "  " + String(lowByte(divTicks10msec)));
+  Serial.println("  100ms: " + String(nr100msec) + "  " + String(highByte(divTicks100msec)) + "  " + String(lowByte(divTicks100msec)));
+  Serial.println("     1s: " + String(nr1sec) + "  " + String(highByte(divTicks1sec)) + "  " + String(lowByte(divTicks1sec)));
+  Serial.println("    10s: " + String(nr10sec) + "  " + String(highByte(divTicks10sec)) + "  " + String(lowByte(divTicks10sec)));
+  Serial.println("  point: " + String(PointNo) + " last " + String(lastSent));
+}
+
+void OSLsendIfDataWaiting(void) {  // OSL-SEND-IF-DATA-WAITING
+  // Serial.println("OSLsendIfDataWaiting point: " + String(PointNo) + "  last: " + String(lastSent));
+  if ((RampSeg = 0x0A) && (PointNo > -1)) {
+    if (lastSent < PointNo) {
+      if (Serial3.availableForWrite() > 45) {
+        lastSent++;
+        // send data
+        sendVHead(lastSent);
+        sendRest();
+      }
+    } else {
+      if (!oslOn) RampSeg = 0;  // all sent
+    }
   }
 }
 

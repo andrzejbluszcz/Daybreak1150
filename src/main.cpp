@@ -10,8 +10,6 @@
 /*  begin of test routines  */
 unsigned long x1, x2, x3, x4;
 unsigned long cOVF;
-// int preVal;  // previous value of count of overflows
-// unsigned long phCount[25], pcpCount[25], tcntCount[25], icrCount[25], sTime[25];
 
 void stopTimer3(void);
 void startTimer3(void);
@@ -19,12 +17,12 @@ void ADCandDACtest(void);
 void testCounter(long unsigned int dTime);
 /*  end of test routines  */
 
-unsigned long Curve[2000];  // CURVE
+unsigned long Curve[1020];  // CURVE
 int CurvePt = -1;  // CURVEPTR  -- here index to current point in Curve[]
 int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
 unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
 int PointNo, lastSent;
-bool Purging, HVdisp, OvenDisp, OSLon, rampFlag, rampOn, isSetPt;
+bool Purging, HVdisp, OvenDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
 
 void CoolOn(void);
 void CoolOff(void);
@@ -43,7 +41,7 @@ void HVon(int pmtNo);
 void HVoff(void);
 void AllOff(void);
 
-void sendData(void);
+// void sendData(int photons);
 
 void writeRampDiv(unsigned int rampDiv);
 
@@ -94,10 +92,13 @@ void setup() {
   setUp();
 
   // Serial3.begin(9600, SERIAL_7N2);
+  Serial.begin(115200, SERIAL_8N1);
   Serial3.begin(115200, SERIAL_8N1);
-  // delay(200);
-  // Serial3.print("New session started"); Serial3.write(0x0D); 
-  // Serial3.print("  Is FLConsole? "); Serial3.print(isFLConsole ? "yes" : "no"); Serial3.write(0x0D); 
+  delay(200);
+  Serial.print("New session started"); Serial.write(0x0D); Serial.write(0x0A);
+  Serial.print("  Is FLConsole? "); Serial.print(isFLConsole ? "yes" : "no"); Serial.write(0x0D); Serial.write(0x0A);
+  Serial3.print("New session started"); Serial3.write(0x0D); 
+  Serial3.print("  Is FLConsole? "); Serial3.print(isFLConsole ? "yes" : "no"); Serial3.write(0x0D); 
   // delay(5000);
   setupCounter();
   cOVF = 0;
@@ -113,10 +114,11 @@ void loop() {
   if (RampSeg != rseg_OSL) {
     if (dataReady) {
       // if (isFLConsole) 
-      sendData();
+      send_Data();
     }
   } else {
-    // OSL-SEND-IF-DATA-WAITING
+    // Serial.println("ramp seg is OSL");
+    OSLsendIfDataWaiting();  // OSL-SEND-IF-DATA-WAITING
   }
 
   extractCommand();
@@ -291,9 +293,9 @@ void AllOff(void) {  // ALL-OFF
   digitalWrite(pPlatEn, HIGH);
 }
 
-void sendData(void) {  // SEND-DATA, SEND-HEAD, SEND-REST
-  sendStatus(Photons);
-}
+// void sendData(int photons) {  // SEND-DATA, SEND-HEAD, SEND-REST
+//   sendStatus(photons);
+// }
 
 void writeRampDiv(unsigned int rampDiv) {  // (rampDiv) RAMP-DIV C! -- writes an initial byte value to the ramp clock counter (CSRCK/)
   setDataByte(lowByte(rampDiv));
@@ -375,14 +377,14 @@ void setup10sec(void) {  // SETUP10SEC
   Ticks = 0;
 }
 
-void setupTB(void) {  // SETUPTB
+void setupTB(void) {  // SETUPTB-F
   switch (TBindex) {
     case 0: setup10msec(); break;
     case 1: setup100msec(); break;
     case 2: setup1sec(); break;
     case 3: setup10sec(); break;
-    // TODO: check the meaning of line below
-    default: TBpoints = 1; break;  // is it necessary? what with Ticks?
+    // DONE: check the meaning of line below
+    default: TBpoints = 1; break;  // nextPoint() decreases it to 0 and eventually stops OSL and sets Ticks/numTicks/RampDiv to 1000 msec
   }
 }
 
@@ -410,11 +412,13 @@ void nextPoint(void) {  // NEXT-POINT
 void OSLServer(void) {  // OSL-SERVER
   // TODO: reset WatchDog - this is a hardware DS1232 MicroMonitor Chip (U27)
   Ticks++;
+  // Serial.println("Ticks: " + String(Ticks) + "; numTicks: " + String(numTicks));
   if (Ticks == numTicks) {
     Time++;
     PointNo++;
     readCounter();
     storePoint();
+    Serial.println("time: " + String(Time) + "; point: " + String(PointNo) + "; count: " + String(Photons));
     incOSLramp();
     nextPoint();
   }
