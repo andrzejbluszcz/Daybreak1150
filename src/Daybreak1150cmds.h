@@ -70,6 +70,16 @@ void startCounter(void);
 
 void setError(byte err_src);
 void resetErrors(void);
+void TFault(void);
+void HVFault(void);
+void IrradFault(void);
+void RampFault(void);
+void ChangeFault(void);
+void CheckVacuum(void);
+void CheckIrradTime(void);
+void CheckCalTime(void);
+void CheckAll(void);
+
 void startTimer(void);
 
 void sendHead(void);

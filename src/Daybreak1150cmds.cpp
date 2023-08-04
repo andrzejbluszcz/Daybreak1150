@@ -230,6 +230,96 @@ void resetErrors(void) {  // RESET-ERRORS -- ok
   Errors = 0;
 }
 
+void TFault(void) { /*  // TFAULT
+  // TODO:
+  bitClear(Errors, T_err);
+  if ((digitalRead(pTCfault) = LOW) || ((4*getTemp() > RampEnd4) && (digitalRead(pOvenEn) == LOW) && !isSetPt)) {
+    setError(T_err);
+    OvenDisp = Flash;
+  } else {
+    OvenDisp = (digitalRead(pOvenEn) == LOW);
+  } */
+}
+
+void HVFault(void) { /*  // HVFAULT
+  // TODO:
+  if ((digitalRead(pShutOpen) == HIGH) && (digitalRead(pHVen) == LOW)) {
+    setError(HV_err);
+    HVdisp = Flash;
+  } else {
+    HVdisp = (digitalRead(pHVen) == LOW);
+  } */
+}
+
+void IrradFault(void) { /*  // IRRADFAULT
+  // TODO:
+  if (elevTimeOut) {
+    setError(Irrad_err);
+  }
+  if (elevTimeOut) {
+    IrradDisp = Flash;
+  } else {
+    IrradDisp = (digitalRead(pIrrad) == HIGH);
+  } */
+}
+
+void RampFault(void) { // RAMPFAULT
+  if ((Ramp > (getADC(0)*125.0)/8.0) || ((Ramp > RampEnd4) && (!isSetPt))) {
+    setError(Ramp_err);
+  }
+}
+
+void ChangeFault(void) { /*  // CHANGEFAULT
+  // TODO:
+  if (((Errors & 0x01F0) > 0x0) || !((digitalRead(pPlatHom) == LOW) && (digitalRead(pArmHom) == LOW) && (isPlatterPos()))) {
+    changeDisp = Flash;
+  } else {
+    changeDisp = false;
+  } */
+}
+
+void CheckVacuum(void) { /*  // CHECK-VACUUM
+  // TODO:
+  if (digitalRead(pVacBleed) == LOW) {
+    if (getADC(3) > 7) {
+      VacOff();
+      MainOn();
+    }
+  } */
+}
+
+void CheckIrradTime(void) { /*  // CHECK-IRRADTIME
+  // TODO:
+  if (digitalRead(pIrrEn) == HIGH) {
+    if (Time + 1 > IrradTime) {
+      irradStop();
+      startTimer();
+    }
+  } */
+}
+
+void CheckCalTime(void) { /*  // CHECK-CALTIME -- not used
+  // TODO:
+  if (digitalRead(pCalEn) == HIGH) {
+    if (Time + 1 > CalTime) {
+      calOff();
+      startTimer();
+    }
+  } */
+}
+
+void CheckAll(void) {  // CHECK-ALL
+  // TODO: complete coding of fault checks
+  TFault();
+  HVFault();
+  IrradFault();
+  RampFault();
+  ChangeFault();
+  CheckVacuum();
+  CheckIrradTime();
+  // CheckCalTime();
+}
+
 void startTimer(void) {  // START-TIMER
   // initialises main board ramp (clock) timer: 250 counts, 4 TICKS -- 1 sec
   Ticks = 0;
@@ -346,7 +436,7 @@ void sendRest(void) {  // SEND-REST
   if (!isFLConsole) Serial3.write(0x0A);  // sends to IDE an  additional NEW LINE  0x0A
 }
 
-void send_Data(void) {
+void send_Data(void) {  // SEND-DATA
   if (Serial3.availableForWrite() > 45) {
     sendHead();
     sendRest();

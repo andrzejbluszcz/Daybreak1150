@@ -7,6 +7,7 @@
 #ifndef mega2560
 #define mega2560
 
+// D0, D1 used for Serial0
 const unsigned int D2 = 2;   // PE4 PWM0 8 bit resolution / INT0
 const unsigned int D3 = 3;   // PE5 PWM1 8 bit resolution / INT1
 const unsigned int D4 = 4;   // PG5 PWM2 8 bit resolution
@@ -19,8 +20,8 @@ const unsigned int D10 = 10; // PB4 PWM8 8 bit resolution
 const unsigned int D11 = 11; // PB5 PWM9 8 bit resolution
 const unsigned int D12 = 12; // PB6 PWM10 8 bit resolution
 const unsigned int D13 = 13; // PB7 PWM11 8 bit resolution; builtin LED
-const unsigned int D14 = 14; // PJ1 / TX3
-const unsigned int D15 = 15; // PJ0 / RX3
+const unsigned int D14 = 14; // -- used for Serial3 -- PJ1 / TX3
+const unsigned int D15 = 15; // -- used for Serial3 -- PJ0 / RX3
 const unsigned int D16 = 16; // PH1 / TX2
 const unsigned int D17 = 17; // PH0 / RX2
 const unsigned int D18 = 18; // PD3 / TX1 / INT5
