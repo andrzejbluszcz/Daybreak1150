@@ -17,14 +17,16 @@ extern int CurvePt;  // CURVEPTR  -- here index to current point in Curve[]
 extern int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
 extern unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
 extern int PointNo, lastSent;
-extern bool Purging, HVdisp, OvenDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
+extern bool Purging, HVdisp, OvenDisp, ElevDisp, IrradDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
 // OSL ramp related
 extern int oslInc, oslRamp;
 extern bool oslOn, oslDisp;
 extern int nr10msec, nr100msec, nr1sec, nr10sec;
 extern unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
 extern int TBindex, TBpoints, startTBindex;
-extern word DAC2;
+// extern word DAC2;
+extern byte Disp[4];  // DSP
+extern byte Segs[10];
 
 // Errors handling -- err_src
 const byte T_err = 0;
@@ -90,9 +92,19 @@ void sendStatus(unsigned long int aCounts);
 void testStatus(void);
 // extern void sendData(int pointNo);
 
-// 1100/1150 MOTION CODE
+// 1100/1150 DISPLAY CODE
+
+// byte Disp[172];  // DSP
+// byte Segs[10] = {0xFC, 0x60, 0xDA, 0xF2, 0x66, 0xB6, 0xBE, 0xE0, 0xFE, 0xF6};
 void Busy(void);
 void unBusy(void);
+void ByteToDisp(byte Acc);
+void StatusToDisp(void);
+void NumberToDisp(void);
+void FillDisp(void);
+void DispStatus(void);
+
+// 1100/1150 MOTION CODE
 void Chg(void);
 void unChg(void);
 bool isArmPos(void);

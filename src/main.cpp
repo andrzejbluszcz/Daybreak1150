@@ -22,7 +22,7 @@ int CurvePt = -1;  // CURVEPTR  -- here index to current point in Curve[]
 int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
 unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
 int PointNo, lastSent;
-bool Purging, HVdisp, OvenDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
+bool Purging, HVdisp, OvenDisp, ElevDisp, IrradDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
 
 void CoolOn(void);
 void CoolOff(void);
@@ -117,7 +117,6 @@ void loop() {
       send_Data();
     }
   } else {
-    // Serial.println("ramp seg is OSL");
     OSLsendIfDataWaiting();  // OSL-SEND-IF-DATA-WAITING
   }
 

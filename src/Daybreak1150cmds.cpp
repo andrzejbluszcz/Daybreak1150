@@ -25,6 +25,8 @@ int nr10msec, nr100msec, nr1sec, nr10sec;
 unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
 int TBindex, TBpoints, startTBindex;
 // word DAC2;
+byte Disp[4];  // DSP
+byte Segs[10] = {0xFC, 0x60, 0xDA, 0xF2, 0x66, 0xB6, 0xBE, 0xE0, 0xFE, 0xF6};  // SEGS
 
 String rampseg[11] = {"rseg_Idle", "rseg_Preheat", "rseg_PhHold", "rseg_PhCool", "rseg_StagePh", "rseg_StHold", "rseg_Ramp", "rseg_EndHold", "rseg_CoolDwn", "n.a.", "rseg_OSL"};
 
@@ -579,7 +581,7 @@ void testStatus(void) {  //  for tests only
   Serial3.println();
 }
 
-// 1100/1150 MOTION CODE
+// 1100/1150 DISPLAY CODE
 
 void Busy(void) {  // BUSY -- ok
   isBusy = true;
@@ -589,15 +591,65 @@ void unBusy(void) {  // UN-BUSY -- ok
   isBusy = false;
 }
 
+void ByteToDisp(byte Acc) {  // SEND-BYTE
+  // TODO: complete coding - define signals pDspData, pDspClk
+  // for (size_t i = 0; i < 8; i++) {
+  //   digitalWrite(pDspData, bitRead(Acc, i));
+  //   digitalWrite(pDspClk, HIGH);
+  //   digitalWrite(pDspClk, HIGH);
+  //   digitalWrite(pDspClk, HIGH);
+  //   digitalWrite(pDspClk, LOW);
+  // }
+}
+
+void StatusToDisp(void) {  // SEND-STATUS
+  for (size_t i = 0; i < 4; i++) {
+    ByteToDisp(Disp[i]);
+  }
+}
+
+void NumberToDisp(void) {  // NUMBER2DSP
+  Disp[2] = Segs[Sample % 0x0A];
+  Disp[3] = Segs[Sample / 0x0A];
+}
+
+void FillDisp(void) {  // FILL-DSP
+  // TODO: complete coding - define signals pVacBleed, pVacMain
+  Disp[0] = 0;
+  Disp[1] = 0;
+  bitWrite(Disp[0], 4, (oslDisp ? 1 : 0));
+  bitWrite(Disp[0], 5, (ElevDisp ? 1 : 0));
+  bitWrite(Disp[0], 6, (rampOn ? 1 : 0));
+  bitWrite(Disp[0], 7, ((digitalRead(pCalEn) == LOW) ? 1 : 0));
+  bitWrite(Disp[1], 0, ((digitalRead(pCool) == LOW) ? 1 : 0));
+  // bitWrite(Disp[1], 1, ((digitalRead(pVacBleed) == LOW) ? 1 : 0));
+  bitWrite(Disp[1], 2, (IrradDisp ? 1 : 0));
+  bitWrite(Disp[1], 3, (changeDisp ? 1 : 0));
+  bitWrite(Disp[1], 4, (OvenDisp ? 1 : 0));
+  bitWrite(Disp[1], 5, (HVdisp ? 1 : 0));
+  bitWrite(Disp[1], 6, ((digitalRead(pPurge) == LOW) ? 1 : 0));
+  // bitWrite(Disp[1], 7, ((digitalRead(pVacMain) == LOW) ? 1 : 0));
+}
+
+void DispStatus(void) {  // DISP-STATUS
+  FillDisp();
+  NumberToDisp();
+  StatusToDisp();
+}
+
 void Chg(void) {  // CHG -- ok
   changeDisp = true;
-  // TODO: DISP_STATUS();
+  // DONE: DISP_STATUS();
+  DispStatus();
 }
 
 void unChg(void) {  // UN-CHG -- ok
   changeDisp = false;
-  // TODO: DISP_STATUS();
+  // DONE: DISP_STATUS();
+  DispStatus();
 }
+
+// 1100/1150 MOTION CODE
 
 bool isArmPos(void) {  // IS-ARM-POS? -- ok
   return (digitalRead(pArmOK) == LOW);
