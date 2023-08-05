@@ -1,32 +1,35 @@
 #ifndef Daybreak1150cmds
 #define Daybreak1150cmds
 
-extern int Sample, RampSeg;
-extern bool changeDisp;
-extern unsigned long Time;
-extern unsigned long timerTime;
-extern word Errors;
+extern bool isFLConsole;
+
+extern bool changeDisp, HVdisp, OvenDisp, ElevDisp, IrradDisp, oslDisp;
 // isBusy is set/reset in initHome and should also be set/reset around each of @-_ commands
 extern bool isBusy;
 extern bool dataReady;
-extern bool isFLConsole;
-extern unsigned long Photons;
-extern unsigned int Ticks, numTicks, lastMSEC, periodRampClock;  // to set Ramp Clock period in msecs
-extern unsigned long Curve[1020];  // CURVE
-extern int CurvePt;  // CURVEPTR  -- here index to current point in Curve[]
-extern int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
-extern unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
-extern int PointNo, lastSent;
-extern bool Purging, HVdisp, OvenDisp, ElevDisp, IrradDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
-// OSL ramp related
-extern int oslInc, oslRamp;
-extern bool oslOn, oslDisp;
-extern int nr10msec, nr100msec, nr1sec, nr10sec;
-extern unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
-extern int TBindex, TBpoints, startTBindex;
-// extern word DAC2;
+extern bool Purging, isSetPt, rampFlag, rampOn, oslOn;
+
 extern byte Disp[4];  // DSP
 extern byte Segs[10];
+
+extern int Sample, RampSeg;
+extern int CurvePt;  // CURVEPTR  -- here index to current point in Curve[]
+extern int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
+extern int PointNo, lastSent;
+extern int oslInc, oslRamp;
+extern int nr10msec, nr100msec, nr1sec, nr10sec;
+extern int TBindex, TBpoints, startTBindex;
+
+extern word Errors;
+extern unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
+extern unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
+extern unsigned int Ticks, numTicks;
+extern unsigned int lastMSEC, periodRampClock;  // to set Ramp Clock period in msecs
+
+extern unsigned long Photons;
+extern unsigned long Time;
+extern unsigned long timerTime;
+extern unsigned long Curve[1020];  // CURVE
 
 // Errors handling -- err_src
 const byte T_err = 0;
