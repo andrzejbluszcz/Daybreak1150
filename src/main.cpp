@@ -8,8 +8,7 @@
 #include "Daybreak1150cmds.h"
 
 /*  begin of test routines  */
-unsigned long x1, x2, x3, x4;
-unsigned long cOVF;
+unsigned long x1, x2, x3, x4, cOVF;
 
 void stopTimer3(void);
 void startTimer3(void);
@@ -17,12 +16,12 @@ void ADCandDACtest(void);
 void testCounter(long unsigned int dTime);
 /*  end of test routines  */
 
-unsigned long Curve[1020];  // CURVE
-int CurvePt = -1;  // CURVEPTR  -- here index to current point in Curve[]
-int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
-unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
-int PointNo, lastSent;
-bool Purging, HVdisp, OvenDisp, ElevDisp, IrradDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
+// unsigned long Curve[1020];  // CURVE
+// int CurvePt = -1;  // CURVEPTR  -- here index to current point in Curve[]
+// int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
+// unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
+// int PointNo, lastSent;
+// bool Purging, HVdisp, OvenDisp, ElevDisp, IrradDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
 
 void CoolOn(void);
 void CoolOff(void);
@@ -43,8 +42,7 @@ void AllOff(void);
 
 // void sendData(int photons);
 
-void writeRampDiv(unsigned int rampDiv);
-
+void writeRampDiv(unsigned int rampDiv);  // (rampDiv) RAMP-DIV C! -- writes an initial byte value to the ramp clock counter (CSRCK/)
 
 // Specialised interrupt servers
 void storePoint(void);
@@ -243,15 +241,15 @@ void OvenOff(void) {  // OVEN-OFF
 }
 
 void BleedOn(void) {  // BLEED-ON
-  // VacuumBleed
+  // TODO:  VacuumBleed
 }
 
 void MainOn(void) {  // MAIN-ON
-  // VacuumMain
+  // TODO:  VacuumMain
 }
 
 void VacOff(void) {  // VAC-OFF
-  // VacuumBleed & VacuumMain off
+  // TODO:  VacuumBleed & VacuumMain off
 }
 
 void calON(void) {  // CAL-ON
@@ -267,18 +265,19 @@ void HVon(int pmtNo) {  // HV-ON
     HVdisp = true;
     digitalWrite(pHVen, LOW);
   }
-  // if there are more HVPS's then ...
+  // TODO:  if there are more HVPS's then ...
 }
 
 void HVoff(void) {  // HV-OFF
     HVdisp = false;
     digitalWrite(pHVen, HIGH);
-    // and all other HV power supplies
+    // TODO:  and all other HV power supplies
 }
 
 void AllOff(void) {  // ALL-OFF
   digitalWrite(pElevEn, HIGH);
-  // digitalWrite(pCalib, LOW);
+  digitalWrite(pCalEn, LOW);
+  // TODO:
   // digitalWrite(pIrrad, LOW);
   // digitalWrite(pVacMain, HIGH);
   // digitalWrite(pVacBleed, HIGH);
@@ -305,15 +304,11 @@ void writeRampDiv(unsigned int rampDiv) {  // (rampDiv) RAMP-DIV C! -- writes an
 
 // Specialised interrupt servers
 void storePoint(void) {  // STORE-PT
-  // CurvePt++;
-  // Curve[CurvePt] = Photons;
   Curve[++CurvePt] = Photons;
 }
 
 void incRampComp(void) {  // INC-RAMP-COMP
   Ramp++;  // ramp value for DAC (4 -> 1 deg C)
-  // writeDAC(1, Ramp);
-  // if (Ramp == EndPt4) {  // DONE: check number of points in TL curve & check the temperature (DAC value) during end hold time
   if (Ramp > EndPt4) {
     Ticks = 0;
     rampOn = false;
@@ -512,16 +507,6 @@ void startRamp(int eT4, int rS, int sT4) {  // START-RAMP
 }
 
 void doRamp(int rampType) {  // DO-RAMP
-  // Serial3.println("doRamp(" + String(rampType) + ")");
-  // Serial3.println("  space "+ String(dSpace4/4));
-  // Serial3.println("  ramp rate " + String(rampRate));
-  // Serial3.println("  cool temp " + String(CoolTemp));
-  // Serial3.println("  end temp " + String(RampEnd4/4));
-  // Serial3.println("  end time " + String(HoldTime));
-  // Serial3.println("  preheat temp " + String(PhTemp4/4));
-  // Serial3.println("  preheat time " + String(PhTime));
-  // Serial3.println("  stage temp " + String(StageTemp4/4));
-  // Serial3.println("  stage time " + String(StageTime));
   if (rampType == 0) {  // stop ramp
     rampOn = false;
     RampSeg = 0;
@@ -550,18 +535,6 @@ unsigned int getTemp(void) {  // GET-TEMP
   return getADC(1)*4;
 }
 
-// DONE: check the timinig of TL sequence with FLConsole in full dump mode
-// generalized ramp stage numbers
-// const int rseg_Idle = 0;
-// const int rseg_Preheat = 1;
-// const int rseg_PhHold = 2;
-// const int rseg_PhCool = 3;
-// const int rseg_StagePh = 4;
-// const int rseg_StHold = 5;
-// const int rseg_Ramp = 6;
-// const int rseg_EndHold = 7;
-// const int rseg_CoolDwn = 8;
-// const int rseg_OSL = 10;
 void rampTest(int rS) {  // RAMPTEST
   switch (rS) {
     case rseg_Idle:     break;          //  SEG0TEST

@@ -3,25 +3,25 @@
 
 extern bool isFLConsole;
 
-extern bool changeDisp, HVdisp, OvenDisp, ElevDisp, IrradDisp, oslDisp;
+extern bool changeDisp, HVdisp, OvenDisp, ElevDisp, IrradDisp, oslDisp, oslOn;
 // isBusy is set/reset in initHome and should also be set/reset around each of @-_ commands
 extern bool isBusy;
 extern bool dataReady;
-extern bool Purging, isSetPt, rampFlag, rampOn, oslOn;
+// extern bool Purging, isSetPt, rampFlag, rampOn, oslOn;
 
 extern byte Disp[4];  // DSP
 extern byte Segs[10];
 
 extern int Sample, RampSeg;
-extern int CurvePt;  // CURVEPTR  -- here index to current point in Curve[]
-extern int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
-extern int PointNo, lastSent;
+// extern int CurvePt;  // CURVEPTR  -- here index to current point in Curve[]
+// extern int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
+// extern int PointNo, lastSent;
 extern int oslInc, oslRamp;
 extern int nr10msec, nr100msec, nr1sec, nr10sec;
 extern int TBindex, TBpoints, startTBindex;
 
 extern word Errors;
-extern unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
+// extern unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
 extern unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
 extern unsigned int Ticks, numTicks;
 extern unsigned int lastMSEC, periodRampClock;  // to set Ramp Clock period in msecs
@@ -29,7 +29,37 @@ extern unsigned int lastMSEC, periodRampClock;  // to set Ramp Clock period in m
 extern unsigned long Photons;
 extern unsigned long Time;
 extern unsigned long timerTime;
-extern unsigned long Curve[1020];  // CURVE
+unsigned long Curve[1020];  // CURVE
+int CurvePt = -1;  // CURVEPTR  -- here index to current point in Curve[]
+int MaxPt;  // MAXPT ( # OF PTS IN GLOWCURVE FOR STORAGE )
+unsigned int rampRate, Ramp, rateCnt, dSpace4, EndPt4, RampEnd4, PhTemp4, StageTemp4, CoolTemp, HoldTime, PhTime, StageTime, calTime; 
+int PointNo, lastSent;
+bool Purging, HVdisp, OvenDisp, ElevDisp, IrradDisp, /*OSLon,*/ rampFlag, rampOn, isSetPt;
+
+int RampSeg = 0;
+int Sample = 0;
+bool changeDisp = false;
+unsigned long Time = 0;
+unsigned long timerTime = 0;
+word Errors = 0;
+// isBusy is set/reset in initHome and should also be set/reset around each of @-_ commands
+bool isBusy = false;  // -- ok
+bool dataReady;
+bool isFLConsole = true;
+unsigned long Photons;
+unsigned int Ticks, numTicks, lastMSEC, periodRampClock;
+// OSL ramp related
+int oslInc, oslRamp;
+bool oslOn, oslDisp;
+int nr10msec, nr100msec, nr1sec, nr10sec;
+unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
+int TBindex, TBpoints, startTBindex;
+// word DAC2;
+byte Disp[4];  // DSP
+byte Segs[10] = {0xFC, 0x60, 0xDA, 0xF2, 0x66, 0xB6, 0xBE, 0xE0, 0xFE, 0xF6};  // SEGS
+
+String rampseg[11] = {"rseg_Idle", "rseg_Preheat", "rseg_PhHold", "rseg_PhCool", "rseg_StagePh", "rseg_StHold", "rseg_Ramp", "rseg_EndHold", "rseg_CoolDwn", "n.a.", "rseg_OSL"};
+
 
 // Errors handling -- err_src
 const byte T_err = 0;
@@ -46,7 +76,7 @@ const byte Buf_err = 10;
 const byte Deck_err = 11;
 const byte X862_err = 12;
 
-// generalized ramp segment numbers
+// Generalized ramp segment numbers
 const int rseg_Idle = 0;
 const int rseg_Preheat = 1;
 const int rseg_PhHold = 2;
@@ -59,6 +89,8 @@ const int rseg_CoolDwn = 8;
 const int rseg_OSL = 10;
 
 extern String rampseg[11];
+
+// Routines 
 
 void setDataByte(byte data);
 byte getDataByte(void);

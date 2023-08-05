@@ -6,29 +6,29 @@
 
 // regex ^(bool|int|void)((?!-- ok).)*$ finds function definitions not ending with '-- ok'
 
-int RampSeg = 0;
-int Sample = 0;
-bool changeDisp = false;
-unsigned long Time = 0;
-unsigned long timerTime = 0;
-word Errors = 0;
-// isBusy is set/reset in initHome and should also be set/reset around each of @-_ commands
-bool isBusy = false;  // -- ok
-bool dataReady;
-bool isFLConsole = true;
-unsigned long Photons;
-unsigned int Ticks, numTicks, lastMSEC, periodRampClock;
-// OSL ramp related
-int oslInc, oslRamp;
-bool oslOn, oslDisp;
-int nr10msec, nr100msec, nr1sec, nr10sec;
-unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
-int TBindex, TBpoints, startTBindex;
-// word DAC2;
-byte Disp[4];  // DSP
-byte Segs[10] = {0xFC, 0x60, 0xDA, 0xF2, 0x66, 0xB6, 0xBE, 0xE0, 0xFE, 0xF6};  // SEGS
+// int RampSeg = 0;
+// int Sample = 0;
+// bool changeDisp = false;
+// unsigned long Time = 0;
+// unsigned long timerTime = 0;
+// word Errors = 0;
+// // isBusy is set/reset in initHome and should also be set/reset around each of @-_ commands
+// bool isBusy = false;  // -- ok
+// bool dataReady;
+// bool isFLConsole = true;
+// unsigned long Photons;
+// unsigned int Ticks, numTicks, lastMSEC, periodRampClock;
+// // OSL ramp related
+// int oslInc, oslRamp;
+// bool oslOn, oslDisp;
+// int nr10msec, nr100msec, nr1sec, nr10sec;
+// unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
+// int TBindex, TBpoints, startTBindex;
+// // word DAC2;
+// byte Disp[4];  // DSP
+// byte Segs[10] = {0xFC, 0x60, 0xDA, 0xF2, 0x66, 0xB6, 0xBE, 0xE0, 0xFE, 0xF6};  // SEGS
 
-String rampseg[11] = {"rseg_Idle", "rseg_Preheat", "rseg_PhHold", "rseg_PhCool", "rseg_StagePh", "rseg_StHold", "rseg_Ramp", "rseg_EndHold", "rseg_CoolDwn", "n.a.", "rseg_OSL"};
+// String rampseg[11] = {"rseg_Idle", "rseg_Preheat", "rseg_PhHold", "rseg_PhCool", "rseg_StagePh", "rseg_StHold", "rseg_Ramp", "rseg_EndHold", "rseg_CoolDwn", "n.a.", "rseg_OSL"};
 
 void setDataByte(byte data) {
   DDRF = 0xFF;  // switch port F to output
@@ -1203,18 +1203,22 @@ void getOSLinfo(unsigned int x0, unsigned int x1, unsigned int x2, unsigned int 
 }
 
 void oslLEDsOn(void) {  // OSL-LEDS-ON PG0 IRenable
+  // TODO:
   // digitalWrite(pIRen, LOW);
 }
 
 void oslLEDsOff(void) {  // OSL-LEDS-OFF PG0 IRenable
+  // TODO:
   // digitalWrite(pIRen, HIGH);
 }
 
 void constCurrent(void) {  // CONST-CURRENT PG1 OSLEnable on
+  // TODO:
   // digitalWrite(pOSLen, LOW);
 }
 
 void servoCurrent(void) {  // SERVO-CURRENT PG1 OSLEnable off
+  // TODO:
   // digitalWrite(pOSLen, HIGH);
 }
 
