@@ -1,34 +1,11 @@
 #include <Arduino.h>
 /* C:\Users\Andrzej\AppData\Local\Arduino15\packages\arduino\hardware\avr\1.8.6\cores\arduino\Arduino.h */
 #include "mega2560.h"
+#include <Globals.h>
 #include "myString.h"
 #include "Daybreak1150cmds.h"
 
 // regex ^(bool|int|void)((?!-- ok).)*$ finds function definitions not ending with '-- ok'
-
-// int RampSeg = 0;
-// int Sample = 0;
-// bool changeDisp = false;
-// unsigned long Time = 0;
-// unsigned long timerTime = 0;
-// word Errors = 0;
-// // isBusy is set/reset in initHome and should also be set/reset around each of @-_ commands
-// bool isBusy = false;  // -- ok
-// bool dataReady;
-// bool isFLConsole = true;
-// unsigned long Photons;
-// unsigned int Ticks, numTicks, lastMSEC, periodRampClock;
-// // OSL ramp related
-// int oslInc, oslRamp;
-// bool oslOn, oslDisp;
-// int nr10msec, nr100msec, nr1sec, nr10sec;
-// unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
-// int TBindex, TBpoints, startTBindex;
-// // word DAC2;
-// byte Disp[4];  // DSP
-// byte Segs[10] = {0xFC, 0x60, 0xDA, 0xF2, 0x66, 0xB6, 0xBE, 0xE0, 0xFE, 0xF6};  // SEGS
-
-// String rampseg[11] = {"rseg_Idle", "rseg_Preheat", "rseg_PhHold", "rseg_PhCool", "rseg_StagePh", "rseg_StHold", "rseg_Ramp", "rseg_EndHold", "rseg_CoolDwn", "n.a.", "rseg_OSL"};
 
 void setDataByte(byte data) {
   DDRF = 0xFF;  // switch port F to output
@@ -48,34 +25,15 @@ void setAddress(byte address) {
   PORTA |= address;  // set address lines
 }
 
-byte getADC(byte num) {  // GET-ADC ( N -- VALUE ) // num - ADC number 0-7
-  // port A low nibble as output (A0-3) and CSADC/ (A4) in setupATmegaPorts()
-  byte data;
-  if (num < 8) {
-    setAddress(num);
-    digitalWrite(pCSADC, LOW); 
-    delayMicroseconds(3);  // wait for conversion
-    data = getDataByte();
-    digitalWrite(pCSADC, HIGH);
-  }
-  return(data);
-}
-
-int* get8ADC() {  // return values from all ADCs in a static array 
-  static int adc[8];
-  for (byte i = 0; i < 8; i++) {
-    setAddress(i);
-    digitalWrite(pCSADC, LOW); 
-    delayMicroseconds(3);
-    adc[i] = getDataByte();
-    digitalWrite(pCSADC, HIGH);
-  }
-  return(adc);  // returns pointer to a static array 
-  // how to use it
-  // int* results;
-  // results = get8ADC();
-  // e.g. Serial3.println("ADC[" + String(i) + "]: " + String(results[i]));
-  // each value is accessed as results[i] or *(results + i)
+void setupCounter(void) {  // has no counterpart in 1100 firmware - R65F12 internal counter B is setup in SET-UP
+  // TCNT5 counter: PL2 counter T5 (counter input), PL1 counter ICP5 (input capture pin)
+  // setup counter TCNT5
+  DDRL &= ~((1 << DDB1) | (1 << DDB2)); // set pins PL1, PL2 as input
+  TCCR5A = 0x00; // set timer/counter control register A to 0
+  TCCR5B = (1 << ICES5) | (1 << CS52) | (1 << CS51) | (0 << CS50); // set timer/counter control register B
+                                                                   // input: falling edge, external clock
+                                                                   // ICP: rising edge from U11/5
+  TIMSK5 |= (1 << ICIE5) | (0 <<  TOIE5); // enable input capture interrupt, disable overflow interrupt
 }
 
 void writeDAC(byte n, word val) {  // PUT-DAC | PUT-DAC2  // n = 1 - DACA (RAMP); n = 2 - DACB (OSL?)
@@ -142,195 +100,153 @@ void write2DAC(word val1, word val2) {  // PUT-DAC & PUT-DAC2  // write 2 values
   // PORTF = 0xFF;  // and pull-up
 }
 
-void setRampClock(unsigned int rcTime) {  // has no counterpart in 1100 firmware
-  // nr of msecs between overflows / interrupts
-  // rcTime = numTicks * 255 + lastMSEC;
-  periodRampClock = rcTime;
-  numTicks = periodRampClock / 255;
-  lastMSEC = periodRampClock % 255;
-  if (numTicks == 0) {
-    setDataByte(255 - lastMSEC);  // or 256? what is the condition for an overflow RCO
-  } else {
-    setDataByte(0);
+int* get8ADC() {  // return values from all ADCs in a static array 
+  static int adc[8];
+  for (byte i = 0; i < 8; i++) {
+    setAddress(i);
+    digitalWrite(pCSADC, LOW); 
+    delayMicroseconds(3);
+    adc[i] = getDataByte();
+    digitalWrite(pCSADC, HIGH);
   }
-  if (lastMSEC > 0) numTicks++;
-  digitalWrite(pCSRCK, LOW);  // reset CSRCK (PD2 = pCSRCK) to move initial value to ramp counter input register
-  digitalWrite(pCSRCK, LOW);
-  digitalWrite(pCSRCK, HIGH);
-  Ticks = 0;
+  return(adc);  // returns pointer to a static array 
+  // how to use it
+  // int* results;
+  // results = get8ADC();
+  // e.g. Serial3.println("ADC[" + String(i) + "]: " + String(results[i]));
+  // each value is accessed as results[i] or *(results + i)
 }
 
-void setupCounter(void) {  // has no counterpart in 1100 firmware - R65F12 internal counter B is setup in SET-UP
-  // TCNT5 counter: PL2 counter T5 (counter input), PL1 counter ICP5 (input capture pin)
-  // setup counter TCNT5
-  DDRL &= ~((1 << DDB1) | (1 << DDB2)); // set pins PL1, PL2 as input
-  TCCR5A = 0x00; // set timer/counter control register A to 0
-  TCCR5B = (1 << ICES5) | (1 << CS52) | (1 << CS51) | (0 << CS50); // set timer/counter control register B
-                                                                   // input: falling edge, external clock
-                                                                   // ICP: rising edge from U11/5
-  TIMSK5 |= (1 << ICIE5) | (0 <<  TOIE5); // enable input capture interrupt, disable overflow interrupt
+
+void CoolOn(void) {  // COOL-ON
+  digitalWrite(pCool, LOW);
 }
 
-void readCounter(void) {  // READ-COUNTER
-  // there is a patch fixing 256 overcount problem 
-  Ticks = 0;
-  digitalWrite(pCSCNT, LOW);
-  digitalWrite(pCSCNT, LOW);
-  digitalWrite(pCSCNT, LOW);
-  Photons = getDataByte();
-  digitalWrite(pCSCNT, HIGH);
-  // x2 = TCNT5;
-  // x4 = ICR5;
-  // x1 = Photons;
-  if (Photons == 0xFF) Photons += (unsigned long) (TCNT5 - 1)*0x100;  // checked OK
-  else Photons += (unsigned long) TCNT5*0x100;  // checked OK
-  digitalWrite(clrPC, LOW);
-  digitalWrite(clrPC, LOW);  // flash port PL0 to clear Photon Counter
-  digitalWrite(clrPC, LOW);
-  digitalWrite(clrPC, HIGH);
-  TCNT5 = 0;  // clear TCNT5 
-  dataReady = true;
+void CoolOff(void) {  // COOL-OFF
+  digitalWrite(pCool, HIGH);
 }
 
-void startCounter(void) {  // START-COUNTER
-  PORTL = PORTL & 0xFE;  // flash port PL0 to clear Photon Counter
-  PORTL = PORTL & 0xFE;
-  PORTL = PORTL & 0xFE;
-  PORTL = PORTL | 0x01;
-  TCNT5 = 0;  // clear TCNT5 
+void PurgeOn(void) {  // PURGE-ON
+  digitalWrite(pPurge, LOW);
 }
 
-ISR(TIMER5_CAPT_vect) {  // the main interrupt server that calls specialised servers
-  // input capture interrupt service routine
-  // if (Ticks == numTicks) {
-  //   // x3 = millis();
-  //   // read photons
-  //   readCounter();
-  //   // and set Ramp Clock
-  //   setRampClock(periodRampClock);
-  //   Time++;
-  // } else if (numTicks - Ticks == 1) {
-  //   // set lastMSEC to Ramp Clock
-  //   setDataByte(255 - lastMSEC);  // or 256? what is the condition for an overflow RCO
-  // digitalWrite(pCSRCK, LOW);  // reset CSRCK (PD2 = pCSRCK) to move initial value to ramp counter input register
-  // digitalWrite(pCSRCK, LOW);
-  // digitalWrite(pCSRCK, HIGH);
-  // }
-  // Ticks++;
-  // Serial.println("ISR  Ticks=" + String(Ticks) + "  oslOn=" + String(oslOn ? "Y" : "N"));
-  if (oslOn) {
-    OSLServer();
+void PurgeOff(void) {  // PURGE-OFF
+  digitalWrite(pPurge, HIGH);
+}
+
+bool checkPurge(void) {  // CHECK-PURGE
+  // check state of controlling pin and set Purging T/F
+  return (digitalRead(pPurge) == LOW);
+}
+
+void purgeIf(bool do_purge) {  // PURGE-IF
+  if (do_purge) PurgeOn();
+}
+
+void HVon(int pmtNo) {  // HV-ON
+  if (pmtNo == 1) {
+    HVdisp = true;
+    digitalWrite(pHVen, LOW);
   }
-  else RampServer();
+  // TODO:  if there are more HVPS's then ...
 }
 
-void setError(byte err_src) {  // SET-XXX-ERR -- ok
-  Errors |= (1 << err_src);
+void HVoff(void) {  // HV-OFF
+    HVdisp = false;
+    digitalWrite(pHVen, HIGH);
+    // TODO:  and all other HV power supplies
 }
 
-void resetErrors(void) {  // RESET-ERRORS -- ok
-  Errors = 0;
+void IrradOn(void) {  // IRRAD-ON
+  // TODO: IrradOn
 }
 
-void TFault(void) { /*  // TFAULT
+void IrradOff(void) {  // IRRAD-OFF
+  // TODO: IrradOff
+}
+
+void CalOn(void) {  // CAL-ON
+  digitalWrite(pCalEn, LOW);
+}
+
+void CalOff(void) {  // CAL-OFF
+  digitalWrite(pCalEn, HIGH);
+}
+
+void OvenOn(void) {  // OVEN-ON
+  OvenDisp = true;
+  digitalWrite(pOvenEn, LOW);
+}
+
+void OvenOff(void) {  // OVEN-OFF
+  OvenDisp = false;
+  digitalWrite(pOvenEn, HIGH);
+}
+
+void oslLEDsOn(void) {  // OSL-LEDS-ON PG0 IRenable
   // TODO:
-  bitClear(Errors, T_err);
-  if ((digitalRead(pTCfault) = LOW) || ((4*getTemp() > RampEnd4) && (digitalRead(pOvenEn) == LOW) && !isSetPt)) {
-    setError(T_err);
-    OvenDisp = Flash;
-  } else {
-    OvenDisp = (digitalRead(pOvenEn) == LOW);
-  } */
+  // digitalWrite(pIRen, LOW);
 }
 
-void HVFault(void) { /*  // HVFAULT
+void oslLEDsOff(void) {  // OSL-LEDS-OFF PG0 IRenable
   // TODO:
-  if ((digitalRead(pShutOpen) == HIGH) && (digitalRead(pHVen) == LOW)) {
-    setError(HV_err);
-    HVdisp = Flash;
-  } else {
-    HVdisp = (digitalRead(pHVen) == LOW);
-  } */
+  // digitalWrite(pIRen, HIGH);
 }
 
-void IrradFault(void) { /*  // IRRADFAULT
+void constCurrent(void) {  // CONST-CURRENT PG1 OSLEnable on
   // TODO:
-  if (elevTimeOut) {
-    setError(Irrad_err);
+  // digitalWrite(pOSLen, LOW);
+}
+
+void servoCurrent(void) {  // SERVO-CURRENT PG1 OSLEnable off
+  // TODO:
+  // digitalWrite(pOSLen, HIGH);
+}
+
+void BleedOn(void) {  // BLEED-ON
+  // TODO:  VacuumBleed
+}
+
+void MainOn(void) {  // MAIN-ON
+  // TODO:  VacuumMain
+}
+
+void VacOff(void) {  // VAC-OFF
+  // TODO:  VacuumBleed & VacuumMain off
+}
+
+void AllOff(void) {  // ALL-OFF
+  digitalWrite(pElevEn, HIGH);
+  digitalWrite(pCalEn, LOW);
+  // TODO:
+  // digitalWrite(pIrrad, LOW);
+  // digitalWrite(pVacMain, HIGH);
+  // digitalWrite(pVacBleed, HIGH);
+  digitalWrite(pPurge, HIGH);
+  digitalWrite(pCool, HIGH);
+  digitalWrite(pOvenEn, HIGH);
+  Purging = false;
+  digitalWrite(pHVen, HIGH);
+  digitalWrite(pArmEn, HIGH);
+  digitalWrite(pArmDir, HIGH);
+  digitalWrite(pPlatEn, HIGH);
+}
+
+
+byte getADC(byte num) {  // GET-ADC ( N -- VALUE ) // num - ADC number 0-7
+  // port A low nibble as output (A0-3) and CSADC/ (A4) in setupATmegaPorts()
+  byte data;
+  if (num < 8) {
+    setAddress(num);
+    digitalWrite(pCSADC, LOW); 
+    delayMicroseconds(3);  // wait for conversion
+    data = getDataByte();
+    digitalWrite(pCSADC, HIGH);
   }
-  if (elevTimeOut) {
-    IrradDisp = Flash;
-  } else {
-    IrradDisp = (digitalRead(pIrrad) == HIGH);
-  } */
+  return(data);
 }
 
-void RampFault(void) { // RAMPFAULT
-  if ((Ramp > (getADC(0)*125.0)/8.0) || ((Ramp > RampEnd4) && (!isSetPt))) {
-    setError(Ramp_err);
-  }
-}
-
-void ChangeFault(void) { /*  // CHANGEFAULT
-  // TODO:
-  if (((Errors & 0x01F0) > 0x0) || !((digitalRead(pPlatHom) == LOW) && (digitalRead(pArmHom) == LOW) && (isPlatterPos()))) {
-    changeDisp = Flash;
-  } else {
-    changeDisp = false;
-  } */
-}
-
-void CheckVacuum(void) { /*  // CHECK-VACUUM
-  // TODO:
-  if (digitalRead(pVacBleed) == LOW) {
-    if (getADC(3) > 7) {
-      VacOff();
-      MainOn();
-    }
-  } */
-}
-
-void CheckIrradTime(void) { /*  // CHECK-IRRADTIME
-  // TODO:
-  if (digitalRead(pIrrEn) == HIGH) {
-    if (Time + 1 > IrradTime) {
-      irradStop();
-      startTimer();
-    }
-  } */
-}
-
-void CheckCalTime(void) { /*  // CHECK-CALTIME -- not used
-  // TODO:
-  if (digitalRead(pCalEn) == HIGH) {
-    if (Time + 1 > CalTime) {
-      calOff();
-      startTimer();
-    }
-  } */
-}
-
-void CheckAll(void) {  // CHECK-ALL
-  // TODO: complete coding of fault checks
-  TFault();
-  HVFault();
-  IrradFault();
-  RampFault();
-  ChangeFault();
-  CheckVacuum();
-  CheckIrradTime();
-  // CheckCalTime();
-}
-
-void startTimer(void) {  // START-TIMER
-  // initialises main board ramp (clock) timer: 250 counts, 4 TICKS -- 1 sec
-  Ticks = 0;
-  numTicks = 4;
-  writeRampDiv(0x05);  // 5 = 255 - 250; 0x05 = ~0xFA
-  Time = 0;
-}
-
-void sendHead(void) {  // SEND-HEAD  sends number of photons (3 bytes) and point number (1 byte or 2 bytes for 2200)
+void sendHead(void) {  // SEND-HEAD & SEND-PT# - sends number of photons (3 bytes) and point number (1 byte or 2 bytes for 2200)
   String s, statusStr;
 
   dataReady = false;   // clears 'dataReady'
@@ -438,14 +354,14 @@ void sendRest(void) {  // SEND-REST
   if (!isFLConsole) Serial3.write(0x0A);  // sends to IDE an  additional NEW LINE  0x0A
 }
 
-void send_Data(void) {  // SEND-DATA
+void sendData(void) {  // SEND-DATA
   if (Serial3.availableForWrite() > 45) {
     sendHead();
     sendRest();
   }
 }
 
-void sendStatus(unsigned long int aCounts) {  // -- ok
+void sendStatus(unsigned long int aCounts) {  // -- not used
   /* data structure 
    1 -  6  ffffff   - photon count
    7 - 24  ffffffffffffffffff - photon counts
@@ -581,33 +497,193 @@ void testStatus(void) {  //  for tests only
   Serial3.println();
 }
 
-// 1100/1150 DISPLAY CODE
-
-void Busy(void) {  // BUSY -- ok
-  isBusy = true;
-}
-
-void unBusy(void) {  // UN-BUSY -- ok
-  isBusy = false;
-}
-
-void ByteToDisp(byte Acc) {  // SEND-BYTE
-  // TODO: complete coding - define signals pDspData, pDspClk
-  // for (size_t i = 0; i < 8; i++) {
-  //   digitalWrite(pDspData, bitRead(Acc, i));
-  //   digitalWrite(pDspClk, HIGH);
-  //   digitalWrite(pDspClk, HIGH);
-  //   digitalWrite(pDspClk, HIGH);
-  //   digitalWrite(pDspClk, LOW);
-  // }
-}
-
-void StatusToDisp(void) {  // SEND-STATUS
-  for (size_t i = 0; i < 4; i++) {
-    ByteToDisp(Disp[i]);
+void OSLsendIfDataWaiting(void) {  // OSL-SEND-IF-DATA-WAITING
+  // Serial.println("OSLsendIfDataWaiting point: " + String(PointNo) + "  last: " + String(lastSent));
+  if ((RampSeg = 0x0A) && (PointNo > -1)) {
+    if (lastSent < PointNo) {
+      if (Serial3.availableForWrite() > 45) {
+        lastSent++;
+        // send data
+        sendVHead(lastSent);
+        sendRest();
+      }
+    } else {
+      if (!oslOn) RampSeg = 0;  // all sent
+    }
   }
 }
 
+
+// Interrupt servers
+void incRampComp(void) {  // INC-RAMP-COMP
+  Ramp++;  // ramp value for DAC (4 -> 1 deg C)
+  if (Ramp > EndPt4) {
+    Ticks = 0;
+    rampOn = false;
+    Time = 0;
+  } else {
+    writeDAC(1, Ramp);
+  }
+}
+
+void readCounter(void) {  // READ-COUNTER
+  // there is a patch fixing 256 overcount problem 
+  Ticks = 0;
+  digitalWrite(pCSCNT, LOW);
+  digitalWrite(pCSCNT, LOW);
+  digitalWrite(pCSCNT, LOW);
+  Photons = getDataByte();
+  digitalWrite(pCSCNT, HIGH);
+  // x2 = TCNT5;
+  // x4 = ICR5;
+  // x1 = Photons;
+  if (Photons == 0xFF) Photons += (unsigned long) (TCNT5 - 1)*0x100;  // checked OK
+  else Photons += (unsigned long) TCNT5*0x100;  // checked OK
+  digitalWrite(clrPC, LOW);
+  digitalWrite(clrPC, LOW);  // flash port PL0 to clear Photon Counter
+  digitalWrite(clrPC, LOW);
+  digitalWrite(clrPC, HIGH);
+  TCNT5 = 0;  // clear TCNT5 
+  dataReady = true;
+}
+
+void startCounter(void) {  // START-COUNTER
+  PORTL = PORTL & 0xFE;  // flash port PL0 to clear Photon Counter
+  PORTL = PORTL & 0xFE;
+  PORTL = PORTL & 0xFE;
+  PORTL = PORTL | 0x01;
+  TCNT5 = 0;  // clear TCNT5 
+}
+
+void storePoint(void) {  // STORE-PT
+  Curve[++CurvePt] = Photons;
+}
+
+void setup10msec(void) {  // SETUP10MSEC
+  numTicks = highByte(divTicks10msec);
+  writeRampDiv(lowByte(divTicks10msec));
+  TBpoints = nr10msec;
+  Ticks = 0;
+}
+
+void setup100msec(void) {  // SETUP100MSEC
+  numTicks = highByte(divTicks100msec);
+  writeRampDiv(lowByte(divTicks100msec));
+  TBpoints = nr100msec;
+  Ticks = 0;
+}
+
+void setup1sec(void) {  // SETUP1SEC
+  numTicks = highByte(divTicks1sec);
+  writeRampDiv(lowByte(divTicks1sec));
+  TBpoints = nr1sec;
+  Ticks = 0;
+}
+
+void setup10sec(void) {  // SETUP10SEC
+  numTicks = highByte(divTicks10sec);
+  writeRampDiv(lowByte(divTicks10sec));
+  TBpoints = nr10sec;
+  Ticks = 0;
+}
+
+void setupTB(void) {  // SETUPTB-F
+  switch (TBindex) {
+    case 0: setup10msec(); break;
+    case 1: setup100msec(); break;
+    case 2: setup1sec(); break;
+    case 3: setup10sec(); break;
+    // DONE: check the meaning of line below
+    default: TBpoints = 1; break;  // nextPoint() decreases it to 0 and eventually stops OSL and sets Ticks/numTicks/RampDiv to 1000 msec
+  }
+}
+
+void incOSLramp(void) {  // INC-OSL-RAMP
+  if (oslInc > 0) {
+    oslRamp += oslInc;
+    writeDAC(2, oslRamp);
+  }
+}
+
+void nextPoint(void) {  // NEXT-POINT
+  TBpoints--;
+  if (TBpoints == 0) {  // go to next TB
+    do {
+      TBindex++;
+      setupTB();
+    } while (TBpoints == 0);
+    if (TBindex == 4) {  // OSL ramp is finished
+      oslOn = false;
+      // digitalWrite(pOSLen, HIGH);
+      // digitalWrite(pIRen, HIGH);
+      // writeExtension(0x1FEE, 0);  // external shutter off
+      Time = 0;
+      oslDisp = false;
+      numTicks = 4;
+      writeRampDiv(0x05);
+      Ticks = 0;
+    }
+  }
+}
+
+void OSLServer(void) {  // OSL-SERVER
+  // TODO: reset WatchDog - this is a hardware DS1232 MicroMonitor Chip (U27)
+  Ticks++;
+  // Serial.println("Ticks: " + String(Ticks) + "; numTicks: " + String(numTicks));
+  if (Ticks == numTicks) {
+    Time++;
+    PointNo++;
+    readCounter();
+    storePoint();
+    Serial.println("time: " + String(Time) + "; point: " + String(PointNo) + "; count: " + String(Photons));
+    incOSLramp();
+    nextPoint();
+  }
+}
+
+void RampServer(void) {  // RAMP-SERVER
+  // TODO: reset WatchDog - this is a hardware DS1232 MicroMonitor Chip (U27)
+  Ticks++;
+  if (rampOn) incRampComp();
+  if (Ticks == numTicks) {
+    Time++;
+    if (rampFlag) {
+      writeRampDiv(rateCnt);
+      rampFlag = false;
+    }
+    readCounter();
+    if (rampOn) {
+      PointNo++;
+      storePoint();
+    }
+  }
+}
+
+ISR(TIMER5_CAPT_vect) {  // the main interrupt server that calls specialised servers
+  // input capture interrupt service routine
+  // if (Ticks == numTicks) {
+  //   // x3 = millis();
+  //   // read photons
+  //   readCounter();
+  //   // and set Ramp Clock
+  //   setRampClock(periodRampClock);
+  //   Time++;
+  // } else if (numTicks - Ticks == 1) {
+  //   // set lastMSEC to Ramp Clock
+  //   setDataByte(255 - lastMSEC);  // or 256? what is the condition for an overflow RCO
+  // digitalWrite(pCSRCK, LOW);  // reset CSRCK (PD2 = pCSRCK) to move initial value to ramp counter input register
+  // digitalWrite(pCSRCK, LOW);
+  // digitalWrite(pCSRCK, HIGH);
+  // }
+  // Ticks++;
+  // Serial.println("ISR  Ticks=" + String(Ticks) + "  oslOn=" + String(oslOn ? "Y" : "N"));
+  if (oslOn) {
+    OSLServer();
+  }
+  else RampServer();
+}
+
+// 1100/1150 DISPLAY CODE
 void NumberToDisp(void) {  // NUMBER2DSP
   Disp[2] = Segs[Sample % 0x0A];
   Disp[3] = Segs[Sample / 0x0A];
@@ -631,10 +707,423 @@ void FillDisp(void) {  // FILL-DSP
   // bitWrite(Disp[1], 7, ((digitalRead(pVacMain) == LOW) ? 1 : 0));
 }
 
+void ByteToDisp(byte Acc) {  // SEND-BYTE
+  // TODO: complete coding - define signals pDspData, pDspClk
+  // for (size_t i = 0; i < 8; i++) {
+  //   digitalWrite(pDspData, bitRead(Acc, i));
+  //   digitalWrite(pDspClk, HIGH);
+  //   digitalWrite(pDspClk, HIGH);
+  //   digitalWrite(pDspClk, HIGH);
+  //   digitalWrite(pDspClk, LOW);
+  // }
+}
+
+void StatusToDisp(void) {  // SEND-STATUS
+  for (size_t i = 0; i < 4; i++) {
+    ByteToDisp(Disp[i]);
+  }
+}
+
 void DispStatus(void) {  // DISP-STATUS
   FillDisp();
   NumberToDisp();
   StatusToDisp();
+}
+
+
+void startTimer(void) {  // START-TIMER
+  // initialises main board ramp (clock) timer: 250 counts, 4 TICKS -- 1 sec
+  Ticks = 0;
+  numTicks = 4;
+  writeRampDiv(0x05);  // 5 = 255 - 250; 0x05 = ~0xFA
+  Time = 0;
+}
+
+unsigned int getTemp(void) {  // GET-TEMP
+  return getADC(1)*4;
+}
+
+void startRamp(int eT4, int rS, int sT4) {  // START-RAMP & START-PREHEAT & START-AFTER-PH & START-AFTER-STAGE
+  Ticks = 0;
+  numTicks = dSpace4;
+  RampSeg = rS;
+  EndPt4 = eT4;
+  writeRampDiv(rateCnt);
+  Ramp = sT4;
+  OvenOn();
+  rampOn = true;
+  Time = 0;
+  startCounter();
+}
+
+void rampTest(int rS) {  // RAMPTEST & more
+  switch (rS) {
+    case rseg_Idle:     break;          //  SEG0TEST
+    case rseg_Preheat:                  //  SEG1TEST, SEG4TEST, SEG6TEST
+    case rseg_StagePh: 
+    case rseg_Ramp:     if (!rampOn) {
+                          startTimer();
+                          RampSeg = rS + 1;
+                          // Serial3.println("finished " + rampseg[rS] + " changing to " + rampseg[RampSeg]);
+                        }
+                        break;
+    case rseg_PhHold:   if (PhTime - 1 < Time) {  //  SEG2TEST
+                          PurgeOff();
+                          CoolOn();
+                          writeDAC(1, 0);
+                          Ramp = 0;
+                          OvenOff();
+                          Time = 0;
+                          RampSeg = rS + 1;
+                          // Serial3.println("finished " + rampseg[rS] + " changing to " + rampseg[RampSeg]);
+                        }
+                        break;
+    case rseg_PhCool:   if (getTemp() < CoolTemp) {  //  SEG3TEST
+                          CoolOff();
+                          purgeIf(Purging);
+                          PointNo = -1;
+                          if (StageTime == 0) {
+                            startRamp(RampEnd4, rseg_Ramp);  // START-AFTER-STAGE
+                          } else {
+                            startRamp(StageTemp4, rseg_StagePh);  // START-AFTER-PH
+                          }
+                        }
+                        break;
+    case rseg_StHold:   if(StageTime - 1 < Time) {  //  SEG5TEST
+                          startRamp(RampEnd4, rseg_Ramp, StageTemp4);  // START-AFTER-STAGE  modified to realise stage preheat functionality
+                        }
+                        break;
+    case rseg_EndHold:  if (HoldTime < Time) {  //  SEG7TEST
+                          rampOn = false;
+                          Time = 0;
+                          writeDAC(1, 0);
+                          Ramp = 0;
+                          OvenOff();
+                          writeRampDiv(5);
+                          RampSeg = rS + 1;
+                          PurgeOff();
+                          CoolOn();
+                          // Serial3.println("finished " + rampseg[rS] + " changing to " + rampseg[RampSeg]);
+                        }
+                        break;
+    case rseg_CoolDwn:  if (getTemp() < CoolTemp) {  //  SEG8TEST
+                          CoolOff();
+                          purgeIf(Purging);
+                          RampSeg = rseg_Idle;
+                          startTimer();
+                          // Serial3.println("finished " + rampseg[rS] + " changing to " + rampseg[RampSeg]);
+                        }
+                        break;
+    default:            break;
+  }
+}
+
+
+// Error bit ops
+void setError(byte err_src) {  // SET-XXX-ERR -- ok
+  Errors |= (1 << err_src);
+}
+
+void resetErrors(void) {  // RESET-ERRORS -- ok
+  Errors = 0;
+}
+
+
+// Check conditions
+void CheckVacuum(void) { /*  // CHECK-VACUUM
+  // TODO:
+  if (digitalRead(pVacBleed) == LOW) {
+    if (getADC(3) > 7) {
+      VacOff();
+      MainOn();
+    }
+  } */
+}
+
+void TFault(void) { /*  // TFAULT
+  // TODO:
+  bitClear(Errors, T_err);
+  if ((digitalRead(pTCfault) = LOW) || ((4*getTemp() > RampEnd4) && (digitalRead(pOvenEn) == LOW) && !isSetPt)) {
+    setError(T_err);
+    OvenDisp = Flash;
+  } else {
+    OvenDisp = (digitalRead(pOvenEn) == LOW);
+  } */
+}
+
+void HVFault(void) { /*  // HVFAULT
+  // TODO:
+  if ((digitalRead(pShutOpen) == HIGH) && (digitalRead(pHVen) == LOW)) {
+    setError(HV_err);
+    HVdisp = Flash;
+  } else {
+    HVdisp = (digitalRead(pHVen) == LOW);
+  } */
+}
+
+void RampFault(void) { // RAMPFAULT
+  if ((Ramp > (getADC(0)*125.0)/8.0) || ((Ramp > RampEnd4) && (!isSetPt))) {
+    setError(Ramp_err);
+  }
+}
+
+void IrradFault(void) { /*  // IRRADFAULT
+  // TODO:
+  if (elevTimeOut) {
+    setError(Irrad_err);
+  }
+  if (elevTimeOut) {
+    IrradDisp = Flash;
+  } else {
+    IrradDisp = (digitalRead(pIrrad) == HIGH);
+  } */
+}
+
+
+void ChangeFault(void) { /*  // CHANGEFAULT
+  // TODO:
+  if (((Errors & 0x01F0) > 0x0) || !((digitalRead(pPlatHom) == LOW) && (digitalRead(pArmHom) == LOW) && (isPlatterPos()))) {
+    changeDisp = Flash;
+  } else {
+    changeDisp = false;
+  } */
+}
+
+void CheckIrradTime(void) { /*  // CHECK-IRRADTIME
+  // TODO:
+  if (digitalRead(pIrrEn) == HIGH) {
+    if (Time + 1 > IrradTime) {
+      irradStop();
+      startTimer();
+    }
+  } */
+}
+
+void CheckCalTime(void) { /*  // CHECK-CALTIME -- not used
+  // TODO:
+  if (digitalRead(pCalEn) == HIGH) {
+    if (Time + 1 > CalTime) {
+      calOff();
+      startTimer();
+    }
+  } */
+}
+
+void CheckAll(void) {  // CHECK-ALL
+  // TODO: complete coding of fault checks
+  TFault();
+  HVFault();
+  IrradFault();
+  RampFault();
+  ChangeFault();
+  CheckVacuum();
+  CheckIrradTime();
+  // CheckCalTime();
+}
+
+
+// Command words
+void setTemp(int temp) {  // SET-POINT
+  Ramp = 4*temp;
+  writeDAC(1, Ramp);
+  isSetPt = true;
+}
+
+// Cool - not used  COOL
+
+void getSpace(int space1) {  // GET-SPACE
+  dSpace4 = 4*min(max(space1, 1), 20);
+}
+
+void getEndPoint(int temp, int time) {  // GET-ENDPOINT
+  // TODO: in FORTH code temp is incremented by 1 - why? Is it related to the condition ending the ramp?
+  RampEnd4 = 4*max(min(temp, 700), 0);
+  HoldTime = max(time, 0);
+}
+
+void doRamp(int rampType) {  // DO-RAMP
+  if (rampType == 0) {  // stop ramp
+    rampOn = false;
+    RampSeg = 0;
+    Ramp = 0;
+    writeDAC(1, Ramp);
+    OvenOff();
+    startTimer();
+  } else {
+    isSetPt = false;
+    Purging = checkPurge();
+    PointNo = -1;
+    CurvePt = -1;
+    if (PhTime > 0) {
+      startRamp(PhTemp4, rseg_Preheat);  // START-PREHEAT   1
+    } else {
+      if (StageTime > 0) {
+        startRamp(StageTemp4, rseg_StagePh);  // START-AFTER-PH    4
+      } else {
+        startRamp(RampEnd4, rseg_Ramp);  // START-AFTER-STAGE    6
+      }
+    }
+  }
+}
+
+void doHV(int pmtNo) {  // DO-HV
+  if (pmtNo == 0) {  // all off
+    HVoff();
+  } else {
+    HVon(pmtNo);
+  }
+}
+
+void doQuery(int pointNo) {  // DO-QUERY
+  // DONE: write the code here
+  pointNo = min(pointNo, PointNo);
+  sendStatus(Curve[pointNo]);
+}
+
+void doCal(int cT) {  // DO-CAL
+  if (cT == 0) {
+    CalOff();
+  } else if (cT > 0) {
+    calTime = cT;
+    timerTime = millis();
+    CalOn();
+  }
+}
+
+void getCool(int temp) {  // GET-COOL
+  CoolTemp = temp;
+}
+
+// doOven not used DO-OVEN
+
+void doPurge(int state) {  // DO-PURGE
+  Purging = (state == 1);
+  if (Purging) PurgeOn();
+  else PurgeOff();
+}
+
+// TODO: doVacuum  DO-VACUUM
+
+void getPreheat(int temp, int time) {  // GET-PREHEAT
+  // TODO: in FORTH code temp is incremented by 1 - why?
+  PhTemp4 = 4*max(min(temp, 700), 0);
+  PhTime = max(time, 0);
+}
+
+void getStage(int temp, int time) {  // GET-STAGE
+  // TODO: in FORTH code temp is incremented by 1 - why?
+  StageTemp4 = 4*max(min(temp, 700), 0);
+  StageTime = max(time, 0);
+}
+
+void getRampRate(int rate) {  // GET-RAMPRATE
+  rampRate = max(min(rate, 25), 1);
+  rateCnt = 255 - int(250.0/rampRate + 0.5);
+  // effective ramp rate is 250.0/int(250.0/rampRate + 0.5) -- the difference is within +/-4.2 %
+}
+
+void getOSLinfo(unsigned int x0, unsigned int x1, unsigned int x2, unsigned int x3) {  // GET-OSL-INFO
+  startTBindex = -1;
+  nr10msec = x0;
+  if ((x0 > 0) && (startTBindex < 0)) startTBindex = 0;
+  nr100msec = x1;
+  if ((x1 > 0) && (startTBindex < 0)) startTBindex = 1;
+  nr1sec = x2;
+  if ((x2 > 0) && (startTBindex < 0)) startTBindex = 2;
+  nr10sec = x3;
+  if ((x3 > 0) && (startTBindex < 0)) startTBindex = 3;
+}
+
+void setDAC2(int val) {  // SET-DAC2
+  val = min(4095, max(0, val));
+  writeDAC(2, val);
+}
+
+void doLEDs(unsigned int power, unsigned int mode) {  // DO-LEDS  N-command
+  writeDAC(2, power);
+  if (power == 0) {
+    servoCurrent();
+    // writeExtension(0x1FEE, 0);
+    oslLEDsOff();
+    oslDisp = false;
+  } else {
+    if (mode == 2) {
+      // writeExtension(0x1FEE, 1);
+      constCurrent();  // EXT SHUTTER  AND GREEN
+    } else {
+      servoCurrent();
+      oslLEDsOn();
+    }
+    oslDisp = true;
+    startTimer();
+  }
+}
+
+void firstPt(unsigned int fstPt) {  // ST# 
+  if (fstPt == 0) {
+    PointNo = -1;
+    lastSent = -1;
+    CurvePt = -1;
+  } else {
+    PointNo = 0;
+    lastSent = 0;
+    CurvePt = 0;
+  }
+}
+
+void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt) {  // DO-OSL  U-command
+  oslRamp = power;
+  writeDAC(2, power);
+  if (mode > 3) {  // mode = 0-3--> DC, 4-7--> LM
+    oslInc = oslRamp;
+  } else {
+    oslInc = 0;
+  }
+  servoCurrent();  // OSL off
+  if (power > 0) {  // then start OSL
+    if (mode == 6) {
+      constCurrent();  // OSL on
+      // writeExtension(0x1FEE, 1);
+    } else {
+      oslLEDsOn();  // IRSL on
+    }
+    delay(5);
+    TBindex = startTBindex;
+    Time = 0;
+    oslDisp = true;
+    firstPt(fstPt);
+    RampSeg = 0x0A;
+    setupTB();
+    startCounter();
+    oslOn = true;
+  } else {
+    servoCurrent();
+    // writeExtension(0x1FEE, 0);
+    oslOn = false;
+    oslDisp = false;
+  }
+  Serial.println("In doOSL()");
+  Serial.println("  TBindex: " + String(TBindex));
+  Serial.println("    oslOn: " + String(oslOn ? "yes" : "no"));
+  Serial.println("   10ms: " + String(nr10msec) + "  " + String(highByte(divTicks10msec)) + "  " + String(lowByte(divTicks10msec)));
+  Serial.println("  100ms: " + String(nr100msec) + "  " + String(highByte(divTicks100msec)) + "  " + String(lowByte(divTicks100msec)));
+  Serial.println("     1s: " + String(nr1sec) + "  " + String(highByte(divTicks1sec)) + "  " + String(lowByte(divTicks1sec)));
+  Serial.println("    10s: " + String(nr10sec) + "  " + String(highByte(divTicks10sec)) + "  " + String(lowByte(divTicks10sec)));
+  Serial.println("  point: " + String(PointNo) + " last " + String(lastSent));
+}
+
+
+// 1100/1150 MOTION CODE
+void Busy(void) {  // BUSY -- ok
+  isBusy = true;
+}
+
+void unBusy(void) {  // UN-BUSY -- ok
+  isBusy = false;
+}
+
+bool hasElevator(void) {  // HAS-ELEVATOR?
+  return (digitalRead(pHasElev) == LOW);
 }
 
 void Chg(void) {  // CHG -- ok
@@ -649,7 +1138,21 @@ void unChg(void) {  // UN-CHG -- ok
   DispStatus();
 }
 
-// 1100/1150 MOTION CODE
+bool isElevatorDown(void) {  // ELEVATOR-DOWN?
+  bool result = !hasElevator();
+  if (!result) {
+    result = (digitalRead(pDeckOK) == LOW) && (digitalRead(pDeckLo) == LOW);
+  }
+  return result;
+}
+
+bool isElevatorPos1(void) {  // ELEVATOR-POS1?
+  return (digitalRead(pDeckMi) == LOW);
+}
+
+bool isElevatorPos2(void) {  // ELEVATOR-POS2?
+  return (digitalRead(pDeckHi) == LOW);
+}
 
 bool isArmPos(void) {  // IS-ARM-POS? -- ok
   return (digitalRead(pArmOK) == LOW);
@@ -679,6 +1182,13 @@ bool isArmDest(int dest_pos) {  // IS-DEST? -- ok
   if (dest_pos == 0) return (isArmOut());
   if (dest_pos == 1) return (isArmHome());
   if (dest_pos == 2) return (isArmIn());
+  return (false);
+}
+
+bool isElevDest(int dest_pos) {  // IS-E-DEST?
+  if (dest_pos == 0) return (isElevatorDown());
+  if (dest_pos == 1) return (isElevatorPos1());
+  if (dest_pos == 2) return (isElevatorPos2());
   return (false);
 }
 
@@ -805,7 +1315,7 @@ bool Rotate1(bool check) {  // ROTATE1  ( CHECK?-- OK? ) -- ok
     stopPlatter();
     if (isPlatterPos()) {
       Sample = (Sample + 1) % 20;
-      send_Data();
+      sendData();
       changeDisp = false;
     } else {
       setError(Pos_err);
@@ -897,13 +1407,13 @@ bool ArmOut(void) {  // ARM-OUT -- ok
 
 bool sampleToPlate(void) {  // SAMPLE-TO-PLATE -- ok
   bool result = ArmHome();
-  send_Data();
+  sendData();
   if (result) {
     result = result && ArmOut();
-    send_Data();
+    sendData();
     if (result) {
       result = result && ArmHome();
-      send_Data();
+      sendData();
     }
   }
   return (result);
@@ -911,13 +1421,13 @@ bool sampleToPlate(void) {  // SAMPLE-TO-PLATE -- ok
 
 bool sampleToPlatter(void) {  // SAMPLE-TO-PLATTER -- ok
   bool result = ArmHome();
-  send_Data();
+  sendData();
   if (result) {
     result = result && ArmIn();
-    send_Data();
+    sendData();
     if (result) {
       result = result && ArmHome();
-      send_Data();
+      sendData();
     }
   }
   return (result);
@@ -1162,12 +1672,8 @@ void initHome(void) {  // INIT-HOME -- ok
   unChg();
 }
 
-// OSL ramp related
-void setTB(unsigned int nT, unsigned int rD) {  // SET-TB - command 'T22 x y '
-  numTicks = nT;
-  writeRampDiv(rD);
-}
 
+// OSL ramp related
 void setTBtable(void) {  // SET-TB-TABLE - sets default channel widths and number
   nr10msec = 0x00;
   nr100msec = 0x00;
@@ -1190,126 +1696,11 @@ void getTBtable(unsigned int X1, unsigned int Y1, unsigned int X2, unsigned int 
   divTicks10sec = X4*0x100 + (0x100 - Y4);
 }
 
-void getOSLinfo(unsigned int x0, unsigned int x1, unsigned int x2, unsigned int x3) {  // GET-OSL-INFO
-  startTBindex = -1;
-  nr10msec = x0;
-  if ((x0 > 0) && (startTBindex < 0)) startTBindex = 0;
-  nr100msec = x1;
-  if ((x1 > 0) && (startTBindex < 0)) startTBindex = 1;
-  nr1sec = x2;
-  if ((x2 > 0) && (startTBindex < 0)) startTBindex = 2;
-  nr10sec = x3;
-  if ((x3 > 0) && (startTBindex < 0)) startTBindex = 3;
+void setTB(unsigned int nT, unsigned int rD) {  // SET-TB - command 'T22 x y '
+  numTicks = nT;
+  writeRampDiv(rD);
 }
 
-void oslLEDsOn(void) {  // OSL-LEDS-ON PG0 IRenable
-  // TODO:
-  // digitalWrite(pIRen, LOW);
-}
-
-void oslLEDsOff(void) {  // OSL-LEDS-OFF PG0 IRenable
-  // TODO:
-  // digitalWrite(pIRen, HIGH);
-}
-
-void constCurrent(void) {  // CONST-CURRENT PG1 OSLEnable on
-  // TODO:
-  // digitalWrite(pOSLen, LOW);
-}
-
-void servoCurrent(void) {  // SERVO-CURRENT PG1 OSLEnable off
-  // TODO:
-  // digitalWrite(pOSLen, HIGH);
-}
-
-void doLEDs(unsigned int power, unsigned int mode) {  // DO-LEDS  N-command
-  writeDAC(2, power);
-  if (power == 0) {
-    servoCurrent();
-    // writeExtension(0x1FEE, 0);
-    oslLEDsOff();
-    oslDisp = false;
-  } else {
-    if (mode == 2) {
-      // writeExtension(0x1FEE, 1);
-      constCurrent();  // EXT SHUTTER  AND GREEN
-    } else {
-      servoCurrent();
-      oslLEDsOn();
-    }
-    oslDisp = true;
-    startTimer();
-  }
-}
-
-void firstPt(unsigned int fstPt) {  // ST# 
-  if (fstPt == 0) {
-    PointNo = -1;
-    lastSent = -1;
-    CurvePt = -1;
-  } else {
-    PointNo = 0;
-    lastSent = 0;
-    CurvePt = 0;
-  }
-}
-
-void doOSL(unsigned int power, unsigned int mode, unsigned int fstPt) {  // DO-OSL  U-command
-  oslRamp = power;
-  writeDAC(2, power);
-  if (mode > 3) {  // mode = 0-3--> DC, 4-7--> LM
-    oslInc = oslRamp;
-  } else {
-    oslInc = 0;
-  }
-  servoCurrent();  // OSL off
-  if (power > 0) {  // then start OSL
-    if (mode == 6) {
-      constCurrent();  // OSL on
-      // writeExtension(0x1FEE, 1);
-    } else {
-      oslLEDsOn();  // IRSL on
-    }
-    delay(5);
-    TBindex = startTBindex;
-    Time = 0;
-    oslDisp = true;
-    firstPt(fstPt);
-    RampSeg = 0x0A;
-    setupTB();
-    startCounter();
-    oslOn = true;
-  } else {
-    servoCurrent();
-    // writeExtension(0x1FEE, 0);
-    oslOn = false;
-    oslDisp = false;
-  }
-  Serial.println("In doOSL()");
-  Serial.println("  TBindex: " + String(TBindex));
-  Serial.println("    oslOn: " + String(oslOn ? "yes" : "no"));
-  Serial.println("   10ms: " + String(nr10msec) + "  " + String(highByte(divTicks10msec)) + "  " + String(lowByte(divTicks10msec)));
-  Serial.println("  100ms: " + String(nr100msec) + "  " + String(highByte(divTicks100msec)) + "  " + String(lowByte(divTicks100msec)));
-  Serial.println("     1s: " + String(nr1sec) + "  " + String(highByte(divTicks1sec)) + "  " + String(lowByte(divTicks1sec)));
-  Serial.println("    10s: " + String(nr10sec) + "  " + String(highByte(divTicks10sec)) + "  " + String(lowByte(divTicks10sec)));
-  Serial.println("  point: " + String(PointNo) + " last " + String(lastSent));
-}
-
-void OSLsendIfDataWaiting(void) {  // OSL-SEND-IF-DATA-WAITING
-  // Serial.println("OSLsendIfDataWaiting point: " + String(PointNo) + "  last: " + String(lastSent));
-  if ((RampSeg = 0x0A) && (PointNo > -1)) {
-    if (lastSent < PointNo) {
-      if (Serial3.availableForWrite() > 45) {
-        lastSent++;
-        // send data
-        sendVHead(lastSent);
-        sendRest();
-      }
-    } else {
-      if (!oslOn) RampSeg = 0;  // all sent
-    }
-  }
-}
 
 void setUp(void) {  // SET-UP
   // what is necessary
@@ -1648,6 +2039,7 @@ void doCommand(String cmdS) {  // DO-COMMAND
       } else errSyntax = true;
       break;
     case 'V':  // DO-VACUUM
+      // TODO: 
       errNotDef = true;
       break;
     case 'W':  // GET-PREHEAT
@@ -1871,4 +2263,5 @@ void initPlatter(void) {  // not Daybreak -- ok
   }
   Sample = 0;
 }
+
 // END
