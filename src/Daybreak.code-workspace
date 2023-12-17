@@ -1,0 +1,31 @@
+{
+	"folders": [
+		{
+			"name": "Blink",
+			"path": "../../Blink"
+		},
+		{
+			"name": "Daybreak1150",
+			"path": ".."
+		},
+		{
+			"name": "Daybreak2200",
+			"path": "../../../../../../Documents/PlatformIO/Projects/Daybreak2200"
+		},
+		{
+			"name": "Daybreak module test",
+			"path": "../../../../../../Documents/PlatformIO/Projects/Daybreak module test"
+		},
+		{
+			"name": "DaybreakDisplayTest",
+			"path": "../../../../../../Documents/PlatformIO/Projects/DaybreakDisplayTest"
+		},
+		{
+			"name": "Leonardo_DAC",
+			"path": "../../../../../../Documents/PlatformIO/Projects/Leonardo_DAC"
+		}
+	],
+	"settings": {
+		"breadcrumbs.enabled": true
+	}
+}

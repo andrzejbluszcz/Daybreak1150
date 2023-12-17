@@ -1,6 +1,7 @@
 // regex ^(bool|int|void)((?!-- ok).)*$ finds function definitions not ending with '-- ok'
 
 // COM7 - Serial3 pair does not work for debugging; must use Serial0 for it
+// uncomment line below for debugging
 // #include "avr8-stub.h"
 #include <Globals.h>
 #include "mega2560.h"
@@ -15,24 +16,7 @@ void stopTimer3(void);
 void startTimer3(void);
 void ADCandDACtest(void);
 void testCounter(long unsigned int dTime);
-void setRampClock(unsigned int rcTime) {  // has no counterpart in 1100 firmware
-  // nr of msecs between overflows / interrupts
-  // rcTime = numTicks * 255 + lastMSEC;
-  periodRampClock = rcTime;
-  numTicks = periodRampClock / 255;
-  lastMSEC = periodRampClock % 255;
-  if (numTicks == 0) {
-    setDataByte(255 - lastMSEC);  // or 256? what is the condition for an overflow RCO
-  } else {
-    setDataByte(0);
-  }
-  if (lastMSEC > 0) numTicks++;
-  digitalWrite(pCSRCK, LOW);  // reset CSRCK (PD2 = pCSRCK) to move initial value to ramp counter input register
-  digitalWrite(pCSRCK, LOW);
-  digitalWrite(pCSRCK, HIGH);
-  Ticks = 0;
-}
-
+void setRampClock(unsigned int rcTime);
 /*  end of test routines  */
 
 void writeRampDiv(unsigned int rampDiv);  // (rampDiv) RAMP-DIV C! -- writes an initial byte value to the ramp clock counter (CSRCK/)
@@ -41,23 +25,25 @@ void writeRampDiv(unsigned int rampDiv);  // (rampDiv) RAMP-DIV C! -- writes an 
 
 void setup() {
   // COM7 - Serial3 pair doesn't work for debugging
-  // initialize GDB stub
+
+  // initialize GDB stub -- uncomment line below for debugging
   // debug_init();
 
   // Daybreak 1150 reader set-up
-  adcInit();
-  setupATmegaPorts(1150);
-  setUp();
+  adcInit();  // inits ATmega2560 ADC's
+  setupATmegaPorts(1150);  // inits ATmega2560 ports for communication with 1150 hardware
+  setUp();  // setup Daybrino
 
-  // Serial3.begin(9600, SERIAL_7N2);
   Serial.begin(115200, SERIAL_8N1);
+  // Serial3.begin(9600, SERIAL_7N2);  // may use faster protocol
   Serial3.begin(115200, SERIAL_8N1);
   delay(200);
+  // Serial0 is for programming/debugging or connects to any terminal (connections reboot ATmega2560)
   Serial.print("New session started"); Serial.write(0x0D); Serial.write(0x0A);
   Serial.print("  Is FLConsole? "); Serial.print(isFLConsole ? "yes" : "no"); Serial.write(0x0D); Serial.write(0x0A);
+  // Serial3 connects PC with running FLConsole (connecting doesn't reboot ATmega2560)
   Serial3.print("New session started"); Serial3.write(0x0D); 
   Serial3.print("  Is FLConsole? "); Serial3.print(isFLConsole ? "yes" : "no"); Serial3.write(0x0D); 
-  // delay(5000);
   setupCounter();
   cOVF = 0;
   startCounter();
@@ -66,7 +52,7 @@ void setup() {
 // use special command 'NF ' to switch Daybrino output to Arduino IDE terminal 
 
 void loop() {
-  // increase FLASH-COUNTER and set/reset FLAsH accordingly
+  // TODO: increase FLASH-COUNTER and set/reset FLASH accordingly
   // CHECK-ALL  - check fault conditions
 
   if (RampSeg != rseg_OSL) {
@@ -92,7 +78,7 @@ void loop() {
 }
 
 
-/*  begin of test routines  */
+/*  begin of definitions of test routines  */
 void stopTimer3(void) {  // not Daybreak -- ok
   noInterrupts();           // disable all interrupts
   TIMSK3 &= ~(1 << TOIE3);  // disable timer overflow interrupt
@@ -158,16 +144,29 @@ void testCounter(long unsigned int dTime) {  // not Daybreak -- ok
   Serial3.println("; timerTime " + String(timerTime));
 }
 
+void setRampClock(unsigned int rcTime) {  // has no counterpart in 1100 firmware
+  // nr of msecs between overflows / interrupts
+  // rcTime = numTicks * 255 + lastMSEC;
+  periodRampClock = rcTime;
+  numTicks = periodRampClock / 255;
+  lastMSEC = periodRampClock % 255;
+  if (numTicks == 0) {
+    setDataByte(255 - lastMSEC);  // or 256? what is the condition for an overflow RCO
+  } else {
+    setDataByte(0);
+  }
+  if (lastMSEC > 0) numTicks++;
+  digitalWrite(pCSRCK, LOW);  // reset CSRCK (PD2 = pCSRCK) to move initial value to ramp counter input register
+  digitalWrite(pCSRCK, LOW);
+  digitalWrite(pCSRCK, HIGH);
+  Ticks = 0;
+}
+
 ISR(TIMER5_OVF_vect) {  // not Daybreak -- ok
   // input capture interrupt service routine
   cOVF++;
 }
-/*  end of test routines  */
-
-
-// void sendData(int photons) {  // SEND-DATA, SEND-HEAD, SEND-REST - redefined in Daybreak1150cmds
-//   sendStatus(photons);
-// }
+/*  end of definitions of test routines  */
 
 void writeRampDiv(unsigned int rampDiv) {  // (rampDiv) RAMP-DIV C! -- writes an initial byte value to the ramp clock counter (CSRCK/)
   setDataByte(lowByte(rampDiv));
