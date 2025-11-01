@@ -7,18 +7,18 @@
 
 // regex ^(bool|int|void)((?!-- ok).)*$ finds function definitions not ending with '-- ok'
 
-void setDataByte(byte data) {
+void setDataByte(unsigned char data) {
   DDRF = 0xFF;  // switch port F to output
   PORTF = data;
 }
 
-byte getDataByte(void) {
+unsigned char getDataByte(void) {
   DDRF = 0x00;  // switch port F to input
   PORTF = 0xFF;  // and pull-up
   return(PINF);
 }
 
-void setAddress(byte address) {
+void setAddress(unsigned char address) {
   // address is low nibble of port A (PA0-3)
   address &= 0x0F;  // clear high nibble to be safe
   PORTA &= 0xF0;    // clear address bits PA0-3
@@ -36,8 +36,8 @@ void setupCounter(void) {  // has no counterpart in 1100 firmware - R65F12 inter
   TIMSK5 |= (1 << ICIE5) | (0 <<  TOIE5); // enable input capture interrupt, disable overflow interrupt
 }
 
-void writeDAC(byte n, word val) {  // PUT-DAC | PUT-DAC2  // n = 1 - DACA (RAMP); n = 2 - DACB (OSL?)
-  byte lo, hi;
+void writeDAC(unsigned char n, unsigned int val) {  // PUT-DAC | PUT-DAC2  // n = 1 - DACA (RAMP); n = 2 - DACB (OSL?)
+  unsigned char lo, hi;
   val = min(val, 4095);  // 12-bit DAC
   if (n < 2) n = 1;
   if (n > 1) n = 2;
@@ -69,25 +69,25 @@ void writeDAC(byte n, word val) {  // PUT-DAC | PUT-DAC2  // n = 1 - DACA (RAMP)
   // PORTF = 0xFF;  // and pull-up
 }
 
-void write2DAC(word val1, word val2) {  // PUT-DAC & PUT-DAC2  // write 2 values to 1 - DACA (RAMP) & 2 - DACB (OSL?)
+void write2DAC(unsigned int val1, unsigned int val2) {  // PUT-DAC & PUT-DAC2  // write 2 values to 1 - DACA (RAMP) & 2 - DACB (OSL?)
   val1 = min(val1, 4095);  // 12-bit DAC
   val2 = min(val2, 4095);  // 12-bit DAC
-  setDataByte(lowByte(val1));  // low val1 byte to D0-7
+  setDataByte(lowByte(val1));  // low val1 unsigned char to D0-7
   setAddress(0x00);  // set address 0x00 to DAC1 LSB
   digitalWrite(pCSDAC1, LOW);  // reset CSDAC1 & WR (PD0 = pCSDAC1) and write val to input register
   digitalWrite(pCSDAC1, HIGH);
-  setDataByte(highByte(val1));  // high val1 byte to D0-7
+  setDataByte(highByte(val1));  // high val1 unsigned char to D0-7
   setAddress(0x01);  // change address 0x01 to MSB
   digitalWrite(pCSDAC1, LOW);  // reset CSDAC1 & WR (PD0 = pCSDAC1) and write val to input register
   digitalWrite(pCSDAC1, LOW);
   digitalWrite(pCSDAC1, HIGH);
 
-  setDataByte(lowByte(val2));  // low val2 byte to D0-7
+  setDataByte(lowByte(val2));  // low val2 unsigned char to D0-7
   setAddress(0x02);  // change address 0x02 to DAC2 LSB
   digitalWrite(pCSDAC1, LOW);  // reset CSDAC1 & WR (PD0 = pCSDAC1) and write val to input register
   digitalWrite(pCSDAC1, LOW);
   digitalWrite(pCSDAC1, HIGH);
-  setDataByte(highByte(val2));  // high val2 byte to D0-7
+  setDataByte(highByte(val2));  // high val2 unsigned char to D0-7
   setAddress(0x03);  // change address 0x03 to MSB
   digitalWrite(pCSDAC1, LOW);  // reset CSDAC1 & WR (PD0 = pCSDAC1) and write val to input register
   digitalWrite(pCSDAC1, LOW);
@@ -102,7 +102,7 @@ void write2DAC(word val1, word val2) {  // PUT-DAC & PUT-DAC2  // write 2 values
 
 int* get8ADC() {  // return values from all ADCs in a static array 
   static int adc[8];
-  for (byte i = 0; i < 8; i++) {
+  for (unsigned char i = 0; i < 8; i++) {
     setAddress(i);
     digitalWrite(pCSADC, LOW); 
     delayMicroseconds(3);
@@ -233,9 +233,9 @@ void AllOff(void) {  // ALL-OFF
 }
 
 
-byte getADC(byte num) {  // GET-ADC ( N -- VALUE ) // num - ADC number 0-7
+unsigned char getADC(unsigned char num) {  // GET-ADC ( N -- VALUE ) // num - ADC number 0-7
   // port A low nibble as output (A0-3) and CSADC/ (A4) in setupATmegaPorts()
-  byte data;
+  unsigned char data;
   if (num < 8) {
     setAddress(num);
     digitalWrite(pCSADC, LOW); 
@@ -246,7 +246,7 @@ byte getADC(byte num) {  // GET-ADC ( N -- VALUE ) // num - ADC number 0-7
   return(data);
 }
 
-void sendHead(void) {  // SEND-HEAD & SEND-PT# - sends number of photons (3 bytes) and point number (1 byte or 2 bytes for 2200)
+void sendHead(void) {  // SEND-HEAD & SEND-PT# - sends number of photons (3 bytes) and point number (1 unsigned char or 2 bytes for 2200)
   String s, statusStr;
 
   dataReady = false;   // clears 'dataReady'
@@ -255,7 +255,7 @@ void sendHead(void) {  // SEND-HEAD & SEND-PT# - sends number of photons (3 byte
   statusStr = s;
   if (PointNo == -1) s = "FF";
   else s = String(PointNo, HEX);
-  while (s.length() < 2) s = "0" + s;  // or 2 byte PointNo for 2200
+  while (s.length() < 2) s = "0" + s;  // or 2 unsigned char PointNo for 2200
   statusStr.concat(s);
   Serial3.print(statusStr);
 }
@@ -267,14 +267,14 @@ void sendVHead(int point) {  // SEND-V-HEAD  sends Curve[point] and point
   while (s.length() < 6) s = "0" + s;
   statusStr = s;
   String(point, HEX);
-  while (s.length() < 2) s = "0" + s;  // or 2 byte point number for 2200
+  while (s.length() < 2) s = "0" + s;  // or 2 unsigned char point number for 2200
   statusStr.concat(s);
   Serial3.print(statusStr);
 }
 
 void sendRest(void) {  // SEND-REST
   String s, statusStr;
-  byte statusB;
+  unsigned char statusB;
   int* result;
 
   s = String(Sample, HEX);
@@ -291,7 +291,7 @@ void sendRest(void) {  // SEND-REST
   while (s.length() < 4) s = "0" + s;
   statusStr.concat(s);
   result = get8ADC();
-  for (byte i = 0; i < 8; i++) {
+  for (unsigned char i = 0; i < 8; i++) {
     s = String(result[i], HEX);
     while (s.length() < 2) s = "0" + s;
     statusStr.concat(s);
@@ -381,7 +381,7 @@ void sendStatus(unsigned long int aCounts) {  // -- not used
   41 - 44  tttt     - time since start
   */
   String s, statusStr;
-  byte statusB;
+  unsigned char statusB;
   int* result;
 
   dataReady = false;
@@ -390,7 +390,7 @@ void sendStatus(unsigned long int aCounts) {  // -- not used
   statusStr = s;
   if (PointNo == -1) s = "FF";
   else s = String(PointNo, HEX);
-  while (s.length() < 2) s = "0" + s;  // or 2 byte PointNo for 2200
+  while (s.length() < 2) s = "0" + s;  // or 2 unsigned char PointNo for 2200
   statusStr.concat(s);
   s = String(Sample, HEX);
   while (s.length() < 2) s = "0" + s;
@@ -406,7 +406,7 @@ void sendStatus(unsigned long int aCounts) {  // -- not used
   while (s.length() < 4) s = "0" + s;
   statusStr.concat(s);
   result = get8ADC();
-  for (byte i = 0; i < 8; i++) {
+  for (unsigned char i = 0; i < 8; i++) {
     s = String(result[i], HEX);
     while (s.length() < 2) s = "0" + s;
     statusStr.concat(s);
@@ -707,7 +707,7 @@ void FillDisp(void) {  // FILL-DSP
   // bitWrite(Disp[1], 7, ((digitalRead(pVacMain) == LOW) ? 1 : 0));
 }
 
-void ByteToDisp(byte Acc) {  // SEND-BYTE
+void ByteToDisp(unsigned char Acc) {  // SEND-BYTE
   // TODO: complete coding - define signals pDspData, pDspClk
   // for (size_t i = 0; i < 8; i++) {
   //   digitalWrite(pDspData, bitRead(Acc, i));
@@ -820,7 +820,7 @@ void rampTest(int rS) {  // RAMPTEST & more
 
 
 // Error bit ops
-void setError(byte err_src) {  // SET-XXX-ERR -- ok
+void setError(unsigned char err_src) {  // SET-XXX-ERR -- ok
   Errors |= (1 << err_src);
 }
 
@@ -2105,8 +2105,8 @@ void doCommand(String cmdS) {  // DO-COMMAND
 
 void processCmd(String cmdS) {  // wrap around doCommand() && special commands
   int argNr = countArgs(cmdS);
-  static byte n;
-  static word val;
+  static unsigned char n;
+  static unsigned int val;
   String cmd, arg;
   bool olc, tlc;
   olc = ((cmdS.length() == 1) && (cmdS.charAt(0) >= '@') && (cmdS.charAt(0) <= '_')) || ((cmdS.charAt(0) >= '@') && (cmdS.charAt(0) <= '_') && (((cmdS.charAt(1) >= '0') && (cmdS.charAt(1) <= '9')) || cmdS.charAt(1) == ' '));

@@ -15,7 +15,7 @@ int Sample = 0;
 bool changeDisp = false;
 unsigned long Time = 0;
 unsigned long timerTime = 0;
-word Errors = 0;
+unsigned int Errors = 0;
 // isBusy is set/reset in initHome and should also be set/reset around each of @-_ commands
 bool isBusy = false;  // -- ok
 bool dataReady;
@@ -29,7 +29,7 @@ int nr10msec, nr100msec, nr1sec, nr10sec;
 unsigned int divTicks10msec, divTicks100msec, divTicks1sec, divTicks10sec;  // RAMP-DIV IN HIGH BYTE, NUMTICKS LOW
 int TBindex, TBpoints, startTBindex;
 
-byte Disp[4];  // DSP
-byte Segs[10] = {0xFC, 0x60, 0xDA, 0xF2, 0x66, 0xB6, 0xBE, 0xE0, 0xFE, 0xF6};  // SEGS
+unsigned char Disp[4];  // DSP
+unsigned char Segs[10] = {0xFC, 0x60, 0xDA, 0xF2, 0x66, 0xB6, 0xBE, 0xE0, 0xFE, 0xF6};  // SEGS
 
 String rampseg[11] = {"rseg_Idle", "rseg_Preheat", "rseg_PhHold", "rseg_PhCool", "rseg_StagePh", "rseg_StHold", "rseg_Ramp", "rseg_EndHold", "rseg_CoolDwn", "n.a.", "rseg_OSL"};

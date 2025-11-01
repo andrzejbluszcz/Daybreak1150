@@ -3,15 +3,15 @@
 
 // Routines 
 
-void setDataByte(byte data);
-byte getDataByte(void);
-void setAddress(byte address);
+void setDataByte(unsigned char data);
+unsigned char getDataByte(void);
+void setAddress(unsigned char address);
 
 extern void setRampClock(unsigned int rcTime);  // has no counterpart in 1100 firmware
 extern void writeRampDiv(unsigned int rampDiv);  // firmware equivalent to setRampClock
 void setupCounter(void);  // has no counterpart in 1100 firmware - R65F12 internal counter B is setup in SET-UP
-void writeDAC(byte n, word val);
-void write2DAC(word val1, word val2);
+void writeDAC(unsigned char n, unsigned int val);
+void write2DAC(unsigned int val1, unsigned int val2);
 int* get8ADC();
 
 void CoolOn(void);
@@ -37,7 +37,7 @@ void MainOn(void);
 void VacOff(void);
 void AllOff(void);
 
-byte getADC(byte num);
+unsigned char getADC(unsigned char num);
 
 void sendHead(void);
 void sendVHead(int point);
@@ -68,7 +68,7 @@ void RampServer(void);
 // 1100/1150 DISPLAY CODE
 void NumberToDisp(void);
 void FillDisp(void);
-void ByteToDisp(byte Acc);
+void ByteToDisp(unsigned char Acc);
 void StatusToDisp(void);
 void DispStatus(void);
 
@@ -78,7 +78,7 @@ void startRamp(int eT4, int rS, int sT4 = 0);
 void rampTest(int rS);
 
 // Error bit ops
-void setError(byte err_src);
+void setError(unsigned char err_src);
 void resetErrors(void);
 
 // Check conditions

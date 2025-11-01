@@ -19,7 +19,7 @@ void testCounter(long unsigned int dTime);
 void setRampClock(unsigned int rcTime);
 /*  end of test routines  */
 
-void writeRampDiv(unsigned int rampDiv);  // (rampDiv) RAMP-DIV C! -- writes an initial byte value to the ramp clock counter (CSRCK/)
+void writeRampDiv(unsigned int rampDiv);  // (rampDiv) RAMP-DIV C! -- writes an initial unsigned char value to the ramp clock counter (CSRCK/)
 
 // definitions of functions
 
@@ -168,7 +168,7 @@ ISR(TIMER5_OVF_vect) {  // not Daybreak -- ok
 }
 /*  end of definitions of test routines  */
 
-void writeRampDiv(unsigned int rampDiv) {  // (rampDiv) RAMP-DIV C! -- writes an initial byte value to the ramp clock counter (CSRCK/)
+void writeRampDiv(unsigned int rampDiv) {  // (rampDiv) RAMP-DIV C! -- writes an initial unsigned char value to the ramp clock counter (CSRCK/)
   setDataByte(lowByte(rampDiv));
   digitalWrite(pCSRCK, LOW);  // reset CSRCK (PD2 = pCSRCK) to move initial value to ramp counter input register
   digitalWrite(pCSRCK, LOW);

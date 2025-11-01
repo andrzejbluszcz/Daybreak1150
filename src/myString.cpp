@@ -23,33 +23,33 @@ int countArgs(String cmdS) { // argument is anything after command separated wit
   return(k);
 }
 
-String byteToBinStr(byte value, byte len = 8) {
+String byteToBinStr(unsigned char value, unsigned char len = 8) {
   String numS = String(value, BIN);
   while (numS.length() < len) numS = "0" + numS;
   return("0b" + numS);
 }
 
-String byteToHexStr(byte value, byte len = 2) {
+String byteToHexStr(unsigned char value, unsigned char len = 2) {
   String numS = String(value, HEX);
   numS.toUpperCase();
   while (numS.length() < len) numS = "0" + numS;
   return("0x" + numS);
 }
 
-String wordToHexStr(word value, byte len = 4) {
+String wordToHexStr(unsigned int value, unsigned char len = 4) {
   String numS = String(value, HEX);
   numS.toUpperCase();
   while (numS.length() < len) numS = "0" + numS;
   return("0x" + numS);
 } 
 
-String ByteToHex(byte val) {  // BYTETOHEX
+String ByteToHex(unsigned char val) {  // BYTETOHEX
   String result = String(val, HEX);
   if (result.length() < 2) result = "0" + result;
   return(result);
 }
 
-String WordToHex(word val) {
+String WordToHex(unsigned int val) {
   String result = String(val, HEX);
   while (result.length() < 4) result = "0" + result;
   return(result);
@@ -67,11 +67,11 @@ String PhotonsToHex(unsigned long val) {
   return(result);
 }
 
-String statusToStr(word timeStamp) {
+String statusToStr(unsigned int timeStamp) {
   // code A6-7, B0-3, C0-7, G0-2, timeStamp, status as a string of hex digits 
   const char hexDigit[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
   static char result[13];
-  static byte statusByte = PINA & 0xC0;
+  static unsigned char statusByte = PINA & 0xC0;
   result[0] = hexDigit[statusByte >> 4];
   result[1] = hexDigit[statusByte & 0x0F];
   statusByte = PINB & 0x0F;
